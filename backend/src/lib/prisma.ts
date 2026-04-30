@@ -1,9 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
-// Prisma 7: pass the connection URL explicitly via datasourceUrl.
-// DATABASE_URL is the direct (non-pooled) Supabase URL.
-const prisma = new PrismaClient({
-  datasourceUrl: process.env.DATABASE_URL,
-});
+// Prisma 7: PrismaClient reads DATABASE_URL from the environment automatically.
+// The datasource URL is configured in prisma.config.ts for CLI tooling; at
+// runtime the client picks it up from process.env.DATABASE_URL directly.
+const prisma = new PrismaClient();
 
 export default prisma;
