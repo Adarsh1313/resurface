@@ -3,10 +3,12 @@ generator client {
 }
 
 datasource db {
-  // Provider is set here; the connection URL lives in prisma.config.ts
-  // (Prisma 7 moved datasource.url out of the schema file).
-  // Swap "sqlite" -> "postgresql" + update prisma.config.ts for prod.
-  provider = "sqlite"
+  // Connection URL is set via DATABASE_URL in .env (local) or the host's
+  // environment (Render for the API, Supabase for the DB).
+  // Use the "direct" (non-pooled) URL for migrations; the pooled URL for queries.
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DATABASE_DIRECT_URL")
 }
 
 model User {

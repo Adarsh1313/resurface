@@ -34,10 +34,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Prisma client must be generated before tsc — without it
-      # @prisma/client exports nothing and every Prisma type resolves to `any`.
+      # Generate Prisma client from the schema so @prisma/client types
+      # are available for TypeScript — no DB connection required.
       - name: Generate Prisma client
         run: npx prisma generate
+        env:
+          # Dummy URL — generate only reads the schema, never connects.
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+          DATABASE_DIRECT_URL: "postgresql://ci:ci@localhost:5432/ci"
 
       - name: Type-check
         run: npx tsc --noEmit

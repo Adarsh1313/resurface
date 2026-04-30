@@ -1,9 +1,8 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import path from 'path';
 
-const dbPath = path.resolve(__dirname, '../../dev.db');
-const adapter = new PrismaBetterSqlite3({ url: dbPath });
-const prisma = new PrismaClient({ adapter });
+// Single shared PrismaClient instance.
+// DATABASE_URL (pooled) is used for all queries.
+// DATABASE_DIRECT_URL (non-pooled) is used by Prisma Migrate only.
+const prisma = new PrismaClient();
 
 export default prisma;
