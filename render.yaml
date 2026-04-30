@@ -11,9 +11,9 @@ services:
       - key: NODE_ENV
         value: production
       # Set these in the Render dashboard — do NOT hardcode secrets here:
+      # Use the DIRECT (Session mode, port 5432) Supabase URL here.
+      # pgbouncer/Transaction mode (port 6543) blocks DDL used by migrations.
       - key: DATABASE_URL
-        sync: false
-      - key: DATABASE_DIRECT_URL
         sync: false
       - key: JWT_SECRET
         generateValue: true   # Render auto-generates a secure random value

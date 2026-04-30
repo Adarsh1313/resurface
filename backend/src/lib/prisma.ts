@@ -1,8 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
-// Single shared PrismaClient instance.
-// DATABASE_URL (pooled) is used for all queries.
-// DATABASE_DIRECT_URL (non-pooled) is used by Prisma Migrate only.
-const prisma = new PrismaClient();
+// Prisma 7: pass the connection URL explicitly via datasourceUrl.
+// DATABASE_URL is the direct (non-pooled) Supabase URL.
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL,
+});
 
 export default prisma;

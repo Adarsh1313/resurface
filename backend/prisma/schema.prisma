@@ -3,12 +3,9 @@ generator client {
 }
 
 datasource db {
-  // Connection URL is set via DATABASE_URL in .env (local) or the host's
-  // environment (Render for the API, Supabase for the DB).
-  // Use the "direct" (non-pooled) URL for migrations; the pooled URL for queries.
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  directUrl         = env("DATABASE_DIRECT_URL")
+  // Prisma 7: URL is configured in prisma.config.ts, NOT here.
+  // Only the provider is declared in the schema.
+  provider = "postgresql"
 }
 
 model User {
