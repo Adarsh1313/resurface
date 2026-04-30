@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Provider is set here; the connection URL lives in prisma.config.ts
+  // (Prisma 7 moved datasource.url out of the schema file).
+  // Swap "sqlite" -> "postgresql" + update prisma.config.ts for prod.
+  provider = "sqlite"
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  name          String
+  avatar_url    String?
+  password_hash String
+  auth_provider String          @default("email")
+  timezone      String          @default("UTC")
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+
+  bookmarks      Bookmark[]
+  topics         Topic[]
+  digest_setting DigestSetting?
+  digest_logs    DigestLog[]
+
+  @@map("users")
+}
+
+model Bookmark {
+  id               String   @id @default(uuid())
+  user_id          String
+  url              String
+  platform         String   // 'x' | 'youtube'
+  title            String?
+  author           String?
+  thumbnail_url    String?
+  duration_seconds Int?
+  status           String   @default("pending") // 'pending' | 'reviewed' | 'snoozed'
+  snoozed_until    DateTime?
+  reminder_at      DateTime?
+  reminder_sent    Boolean  @default(false)
+  notes            String?
+  saved_at         DateTime @default(now())
+  reviewed_at      DateTime?
+  deleted_at       DateTime?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  user   User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  topics Topic[]
+
+  @@index([user_id])
+  @@index([status])
+  @@index([platform])
+  @@index([reminder_at])
+  @@map("bookmarks")
+}
+
+model Topic {
+  id         String   @id @default(uuid())
+  user_id    String
+  name       String
+  color      String   @default("#6B7280")
+  created_at DateTime @default(now())
+
+  user      User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  bookmarks Bookmark[]
+
+  @@unique([user_id, name])
+  @@map("topics")
+}
+
+
+model DigestSetting {
+  id           String   @id @default(uuid())
+  user_id      String   @unique
+  frequency    Int      @default(1)
+  days_of_week String   @default("1") // comma-separated: "1" or "1,4"
+  send_time    String   @default("08:00:00")
+  is_active    Boolean  @default(true)
+  last_sent_at DateTime?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("digest_settings")
+}
+
+model WaitlistEntry {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  source     String?  // e.g. 'landing', 'twitter', 'product-hunt'
+  referrer   String?  // document.referrer if available
+  user_agent String?
+  ip         String?  // best-effort, for dedupe/abuse only
+  created_at DateTime @default(now())
+
+  @@index([created_at])
+  @@map("waitlist_entries")
+}
+
+model DigestLog {
+  id             String   @id @default(uuid())
+  user_id        String
+  sent_at        DateTime @default(now())
+  bookmark_ids   String   @default("") // comma-separated UUIDs
+  opened         Boolean  @default(false)
+  opened_at      DateTime?
+  items_reviewed Int      @default(0)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("digest_logs")
+}

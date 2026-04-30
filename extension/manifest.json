@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Resurface",
+  "version": "1.0.0",
+  "description": "Capture bookmarks from X/Twitter and YouTube, organize by topic, and get smart reminders.",
+  "permissions": ["activeTab", "storage", "notifications"],
+  "host_permissions": [
+    "*://twitter.com/*",
+    "*://x.com/*",
+    "*://www.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://twitter.com/*",
+        "*://x.com/*",
+        "*://www.youtube.com/*"
+      ],
+      "js": ["dist/content.js"],
+      "css": [],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Resurface"
+  },
+  "icons": {}
+}

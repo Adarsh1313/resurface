@@ -1,0 +1,127 @@
+:host {
+  all: initial;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #e4e4e7;
+}
+
+.resurface-modal {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  padding: 16px;
+  max-width: 320px;
+  width: 320px;
+  animation: slideIn 0.25s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.resurface-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.resurface-field {
+  margin-bottom: 10px;
+}
+
+.resurface-field label {
+  display: block;
+  font-size: 12px;
+  color: #a1a1aa;
+  margin-bottom: 4px;
+}
+
+.resurface-field .value {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resurface-field select {
+  width: 100%;
+  padding: 6px 8px;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  color: #e4e4e7;
+  font-size: 13px;
+  outline: none;
+}
+
+.resurface-field select:focus {
+  border-color: #6366f1;
+}
+
+.resurface-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.resurface-actions button {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-skip {
+  background: #27272a;
+  color: #a1a1aa;
+}
+
+.btn-skip:hover {
+  background: #3f3f46;
+}
+
+.btn-reminder {
+  background: #27272a;
+  color: #a1a1aa;
+  margin-bottom: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-reminder:hover {
+  background: #3f3f46;
+}
+
+.btn-save {
+  background: #6366f1;
+  color: #fff;
+}
+
+.btn-save:hover {
+  background: #4f46e5;
+}
+
+.resurface-timer {
+  height: 3px;
+  background: #6366f1;
+  border-radius: 2px;
+  margin-top: 12px;
+  transition: width 0.1s linear;
+}

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Resurface — Design</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="styles/tokens.css">
+<style>
+  html, body { margin: 0; background: #0a0a09; }
+
+  /* Animations */
+  @keyframes rsPromptIn { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes rsDropdownIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes rsRowExpand { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 300px; } }
+  @keyframes rsRipple { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(2.5); opacity: 0; } }
+  @keyframes rsToastIn { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  @keyframes rsFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Canvas layout */
+  .rs-canvas {
+    background: #0a0a09;
+    min-height: 100vh;
+    padding: 56px 48px 80px;
+    position: relative;
+  }
+  .rs-canvas-header { max-width: 1360px; margin: 0 auto 40px; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+  .rs-canvas-grid { max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+  .rs-section-label {
+    display: flex; align-items: baseline; gap: 12px;
+    padding-bottom: 10px; margin-bottom: 18px;
+    border-bottom: 0.5px solid var(--rs-border-subtle);
+  }
+  .rs-section-num {
+    font: 500 10px/1 'Geist', sans-serif; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--rs-teal-400);
+  }
+  .rs-section-title {
+    font: 500 18px/1.2 'Geist', sans-serif; letter-spacing: -0.02em;
+    color: var(--rs-text-primary);
+  }
+  .rs-section-caption {
+    font: 400 13px/1.55 'Geist', sans-serif; color: var(--rs-text-tertiary);
+    margin-left: auto; max-width: 420px; text-align: right;
+  }
+  .rs-frame-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font: 500 11px/1 'Geist', sans-serif; color: var(--rs-text-tertiary);
+    margin-bottom: 10px;
+  }
+  .rs-frame-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--rs-teal-400); }
+
+  .rs-frame {
+    background: var(--rs-bg-base);
+    border: 0.5px solid var(--rs-border-default);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px -10px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.03);
+  }
+
+  /* Tweaks panel */
+  .rs-tweaks {
+    position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+    width: 280px;
+    background: var(--rs-bg-overlay);
+    border: 0.5px solid var(--rs-border-default);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    font-family: 'Geist', sans-serif;
+    display: none;
+  }
+  .rs-tweaks.open { display: block; animation: rsPromptIn 240ms var(--rs-ease-default); }
+  .rs-tweaks-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 0.5px solid var(--rs-border-subtle); }
+  .rs-tweaks-title { font: 500 13px/1 'Geist', sans-serif; color: var(--rs-text-primary); letter-spacing: -0.01em; }
+  .rs-tweak-row { margin-bottom: 12px; }
+  .rs-tweak-label { font: 400 11px/1 'Geist', sans-serif; color: var(--rs-text-tertiary); margin-bottom: 6px; display: block; }
+  .rs-tweak-opts { display: flex; gap: 4px; padding: 2px; background: var(--rs-bg-elevated); border: 0.5px solid var(--rs-border-subtle); border-radius: 8px; flex-wrap: wrap; }
+  .rs-tweak-btn {
+    flex: 1; min-width: 0; padding: 5px 8px;
+    background: transparent; border: none; border-radius: 6px;
+    font: 500 11px/1 'Geist', sans-serif; color: var(--rs-text-secondary);
+    cursor: pointer; white-space: nowrap;
+  }
+  .rs-tweak-btn.on {
+    background: var(--rs-bg-hover); color: var(--rs-teal-300);
+    border-left: 2px solid var(--rs-teal-400); border-radius: 0 6px 6px 0; padding-left: 6px;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="data/fixtures.jsx"></script>
+<script type="text/babel" src="components/primitives.jsx"></script>
+<script type="text/babel" src="components/bookmark-table.jsx"></script>
+<script type="text/babel" src="components/dashboard-shell.jsx"></script>
+<script type="text/babel" src="components/browser-window.jsx"></script>
+<script type="text/babel" src="components/surfaces-a.jsx"></script>
+<script type="text/babel" src="components/surfaces-b.jsx"></script>
+<script type="text/babel" src="components/dashboard-page.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const TWEAKS = /*EDITMODE-BEGIN*/{
+  "accent": "teal",
+  "density": "comfortable",
+  "grain": "off",
+  "promptPlatform": "x"
+}/*EDITMODE-END*/;
+
+const ACCENT_MAP = {
+  teal:  { a400: '#2dd4bf', a300: '#5eead4', a600: '#0d9488', a900: '#042f2e' },
+  violet:{ a400: '#a78bfa', a300: '#c4b5fd', a600: '#7c3aed', a900: '#2e1065' },
+  amber: { a400: '#fbbf24', a300: '#fcd34d', a600: '#d97706', a900: '#451a03' },
+};
+const applyAccent = (key) => {
+  const p = ACCENT_MAP[key] || ACCENT_MAP.teal;
+  const r = document.documentElement.style;
+  r.setProperty('--rs-teal-400', p.a400);
+  r.setProperty('--rs-teal-300', p.a300);
+  r.setProperty('--rs-teal-600', p.a600);
+  r.setProperty('--rs-teal-900', p.a900);
+};
+const applyGrain = (g) => {
+  const v = g === 'off' ? '0' : g === 'heavy' ? '0.038' : '0.018';
+  document.documentElement.style.setProperty('--rs-grain-opacity', v);
+};
+
+// Apply initial tweaks
+applyAccent(TWEAKS.accent);
+applyGrain(TWEAKS.grain);
+
+// ═══ Frame wrapper ════════════════════════════════════════
+const Frame = ({ label, width, height, children, scroll = false, grain = true }) => (
+  <div>
+    <div className="rs-frame-label"><span className="dot"/>{label}</div>
+    <div className="rs-frame" style={{ width, height, position: 'relative' }}>
+      <div className={grain ? 'rs-grain' : ''} style={{ width: '100%', height: '100%', overflow: scroll ? 'auto' : 'hidden', position: 'relative' }}>
+        {children}
+      </div>
+    </div>
+  </div>
+);
+
+// ═══ Section ══════════════════════════════════════════════
+const Section = ({ num, title, caption, children }) => (
+  <section>
+    <div className="rs-section-label">
+      <span className="rs-section-num">{num}</span>
+      <span className="rs-section-title">{title}</span>
+      {caption && <span className="rs-section-caption">{caption}</span>}
+    </div>
+    {children}
+  </section>
+);
+
+// ═══ Chrome window wrapper with site contents ═════════════
+const BrowserFrame = ({ url, tabTitle, children, width = 1100, height = 720 }) => (
+  <div style={{
+    width, borderRadius: 10, overflow: 'hidden',
+    boxShadow: '0 24px 80px rgba(0,0,0,0.45), 0 0 0 0.5px rgba(255,255,255,0.05)',
+    background: '#202124',
+  }}>
+    <ChromeTabBar tabs={[{ title: tabTitle }]} activeIndex={0} />
+    <ChromeToolbar url={url} />
+    <div style={{ height, background: 'var(--rs-bg-base)', position: 'relative', overflow: 'hidden' }}>
+      {children}
+    </div>
+  </div>
+);
+
+// ═══ App ══════════════════════════════════════════════════
+const App = () => {
+  const [tweaks, setTweaks] = React.useState(TWEAKS);
+  const [tweaksOpen, setTweaksOpen] = React.useState(false);
+
+  // Tweaks edit-mode integration
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const d = e.data || {};
+      if (d.type === '__activate_edit_mode') setTweaksOpen(true);
+      if (d.type === '__deactivate_edit_mode') setTweaksOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const updateTweak = (key, value) => {
+    const next = { ...tweaks, [key]: value };
+    setTweaks(next);
+    if (key === 'accent') applyAccent(value);
+    if (key === 'grain') applyGrain(value);
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [key]: value } }, '*');
+  };
+
+  return (
+    <>
+      <div className="rs-canvas rs-grain">
+        {/* Canvas header */}
+        <div className="rs-canvas-header">
+          <div>
+            <Logo size={28} wordSize={20} />
+            <h1 className="rs-display" style={{ margin: '18px 0 8px', fontSize: 34 }}>
+              Resurface — hi-fi design exploration
+            </h1>
+            <p style={{ font: '400 15px/1.55 Geist', color: 'var(--rs-text-secondary)', margin: 0, maxWidth: 620 }}>
+              A Chrome extension that captures saves from X and YouTube, and a web app that resurfaces them in a weekly digest. Seven connected surfaces, dark-first, with realistic data.
+            </p>
+          </div>
+          <div style={{
+            padding: '10px 14px',
+            background: 'var(--rs-bg-surface)',
+            border: '0.5px solid var(--rs-border-subtle)',
+            borderRadius: 10,
+            font: '400 12px/1.5 Geist', color: 'var(--rs-text-tertiary)', maxWidth: 260,
+          }}>
+            <div className="rs-micro" style={{ marginBottom: 6 }}>Reading guide</div>
+            Scroll top-to-bottom. Every table row expands. Hover rows for actions. Topic pills are clickable. Toggle Tweaks in the toolbar.
+          </div>
+        </div>
+
+        <div className="rs-canvas-grid">
+
+          <Section num="01 / Landing" title="Marketing site" caption="Dark hero, one inverted CTA panel. No gradient slop — one accent colour carries the whole palette.">
+            <Frame label="resurface.app — homepage" width={1100} height={1600} scroll>
+              <Landing />
+            </Frame>
+          </Section>
+
+          <Section num="02 / Extension capture prompt" title="The only UI the user sees while saving" caption="Over a real X or YouTube feed. 8-second auto-dismiss timer pauses on hover. Topic is AI-suggested but overridable.">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+              <div>
+                <BrowserFrame url="x.com/home" tabTitle="Home / X">
+                  <XFeedBg />
+                  <ExtensionPrompt platform="x" />
+                </BrowserFrame>
+              </div>
+              <div>
+                <BrowserFrame url="youtube.com" tabTitle="YouTube">
+                  <YTFeedBg />
+                  <ExtensionPrompt platform="youtube" />
+                </BrowserFrame>
+              </div>
+            </div>
+          </Section>
+
+          <Section num="03 / Dashboard" title="Web app — all saves" caption="Sidebar with counts, four-card stats row with sparklines, filterable table. Click any row to expand. Hover to reveal actions.">
+            <Frame label="app.resurface.app/saves" width={1360} height={900}>
+              <DashboardPage />
+            </Frame>
+          </Section>
+
+          <Section num="04 / Onboarding" title="Three steps, no fluff" caption="Install → save something → set digest. Skip available at every step.">
+            <Frame label="app.resurface.app/onboarding" width={1200} height={720}>
+              <Onboarding />
+            </Frame>
+          </Section>
+
+          <Section num="05 / Settings" title="Digest, topics, notifications" caption="Same sidebar vocabulary as the dashboard — left-border accent for active item. Six sections, digest is the default.">
+            <Frame label="app.resurface.app/settings" width={1060} height={760} scroll>
+              <Settings />
+            </Frame>
+          </Section>
+
+          <Section num="06 / Weekly digest email" title="Five saves, terminal copy" caption="Dark email. Works in Gmail/Outlook with system font stack. Three CTAs per save: Reviewed, Snooze, Open.">
+            <Frame label="digest@resurface.app" width={620} height={900} scroll>
+              <EmailDigest />
+            </Frame>
+          </Section>
+
+          <Section num="07 / Empty states" title="Six variants — dry wit, not pep" caption="Each illustration uses the same two-tone vocabulary: teal outline, single amber highlight. Mirrors the logo.">
+            <Frame label="Empty state gallery" width={1100} height={720} scroll>
+              <EmptyStatesGallery />
+            </Frame>
+          </Section>
+
+        </div>
+      </div>
+
+      {/* Tweaks panel */}
+      <div className={'rs-tweaks' + (tweaksOpen ? ' open' : '')}>
+        <div className="rs-tweaks-head">
+          <Icon name="sliders" size={14} color="var(--rs-teal-400)"/>
+          <span className="rs-tweaks-title">Tweaks</span>
+          <button onClick={() => setTweaksOpen(false)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--rs-text-tertiary)', cursor: 'pointer' }}>
+            <Icon name="x" size={13}/>
+          </button>
+        </div>
+
+        <div className="rs-tweak-row">
+          <span className="rs-tweak-label">Accent colour</span>
+          <div className="rs-tweak-opts">
+            {['teal', 'violet', 'amber'].map(c => (
+              <button key={c} className={'rs-tweak-btn' + (tweaks.accent === c ? ' on' : '')} onClick={() => updateTweak('accent', c)}>{c}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rs-tweak-row">
+          <span className="rs-tweak-label">Table density</span>
+          <div className="rs-tweak-opts">
+            {['comfortable', 'compact'].map(d => (
+              <button key={d} className={'rs-tweak-btn' + (tweaks.density === d ? ' on' : '')} onClick={() => updateTweak('density', d)}>{d}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rs-tweak-row">
+          <span className="rs-tweak-label">Canvas grain</span>
+          <div className="rs-tweak-opts">
+            {['off', 'subtle', 'heavy'].map(g => (
+              <button key={g} className={'rs-tweak-btn' + (tweaks.grain === g ? ' on' : '')} onClick={() => updateTweak('grain', g)}>{g}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rs-tweak-row">
+          <span className="rs-tweak-label">Extension prompt platform</span>
+          <div className="rs-tweak-opts">
+            {['x', 'youtube'].map(p => (
+              <button key={p} className={'rs-tweak-btn' + (tweaks.promptPlatform === p ? ' on' : '')} onClick={() => updateTweak('promptPlatform', p)}>{p === 'x' ? 'X' : 'YouTube'}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

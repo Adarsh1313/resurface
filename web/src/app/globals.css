@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/* Resurface — design tokens (from Claude Design handoff) */
+:root {
+  /* Backgrounds */
+  --rs-bg-base: #0f0f0e;
+  --rs-bg-surface: #161614;
+  --rs-bg-elevated: #1e1e1b;
+  --rs-bg-hover: #252520;
+  --rs-bg-overlay: #2d2d29;
+
+  /* Borders */
+  --rs-border-subtle: rgba(255, 255, 255, 0.06);
+  --rs-border-default: rgba(255, 255, 255, 0.10);
+  --rs-border-strong: rgba(255, 255, 255, 0.16);
+  --rs-border-focus: rgba(45, 212, 191, 0.45);
+
+  /* Text */
+  --rs-text-primary: #f0ede8;
+  --rs-text-secondary: #9b9690;
+  --rs-text-tertiary: #5e5b57;
+  --rs-text-disabled: #3a3835;
+
+  /* Brand — teal (only interactive color) */
+  --rs-teal-200: #99f6e4;
+  --rs-teal-300: #5eead4;
+  --rs-teal-400: #2dd4bf;
+  --rs-teal-500: #14b8a6;
+  --rs-teal-600: #0d9488;
+  --rs-teal-900: #042f2e;
+
+  /* Brand — amber (accent only) */
+  --rs-amber-200: #fde68a;
+  --rs-amber-400: #fbbf24;
+  --rs-amber-900: #2d1a00;
+
+  /* Status */
+  --rs-green-300: #86efac;
+  --rs-green-400: #4ade80;
+  --rs-green-900: #052e16;
+  --rs-red-300: #fca5a5;
+  --rs-red-400: #f87171;
+  --rs-red-600: #ef4444;
+
+  /* Platforms */
+  --rs-x-bg: rgba(255, 255, 255, 0.07);
+  --rs-x-text: #e7e4df;
+  --rs-x-border: rgba(255, 255, 255, 0.12);
+  --rs-yt-bg: rgba(255, 64, 64, 0.10);
+  --rs-yt-text: #fca5a5;
+  --rs-yt-border: rgba(255, 64, 64, 0.18);
+  --rs-yt-red: #ff4040;
+
+  /* Snoozed (beige/brown per design feedback) */
+  --rs-snooze-bg: rgba(168, 138, 94, 0.10);
+  --rs-snooze-text: #d4b896;
+  --rs-snooze-border: rgba(168, 138, 94, 0.22);
+
+  /* Radii */
+  --rs-radius-xs: 4px;
+  --rs-radius-sm: 6px;
+  --rs-radius-md: 8px;
+  --rs-radius-lg: 12px;
+  --rs-radius-xl: 16px;
+  --rs-radius-full: 100px;
+
+  /* Motion */
+  --rs-dur-fast: 150ms;
+  --rs-dur-base: 200ms;
+  --rs-ease-default: cubic-bezier(0.2, 0, 0, 1);
+  --rs-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --rs-grain-opacity: 0.018;
+}
+
+@theme inline {
+  --color-background: var(--rs-bg-base);
+  --color-foreground: var(--rs-text-primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* { box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+html, body {
+  margin: 0; padding: 0;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--rs-text-primary);
+  background: var(--rs-bg-base);
+}
+
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+
+::selection { background: rgba(45, 212, 191, 0.35); color: var(--rs-text-primary); }
+
+/* Type scale */
+.rs-display { font: 500 28px/1.10 var(--font-geist-sans); letter-spacing: -0.03em; }
+.rs-heading { font: 500 20px/1.25 var(--font-geist-sans); letter-spacing: -0.02em; }
+.rs-subhead { font: 500 16px/1.35 var(--font-geist-sans); letter-spacing: -0.01em; }
+.rs-body    { font: 400 14px/1.65 var(--font-geist-sans); }
+.rs-label   { font: 500 13px/1.40 var(--font-geist-sans); }
+.rs-small   { font: 400 12px/1.50 var(--font-geist-sans); }
+.rs-caption { font: 400 11px/1.40 var(--font-geist-sans); }
+.rs-micro   {
+  font: 500 10px/1 var(--font-geist-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rs-text-tertiary);
+}
+
+/* Grain overlay on canvas surfaces */
+.rs-grain::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  opacity: var(--rs-grain-opacity);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+}
+
+.rs-focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.35);
+}
+
+/* Scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06); border-radius: 100px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.12); background-clip: padding-box; }
+
+/* Row expand animation */
+@keyframes rsRowExpand {
+  from { max-height: 0; opacity: 0; }
+  to { max-height: 400px; opacity: 1; }
+}
+@keyframes rsDropdownIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Dark-theme remap for legacy light Tailwind utilities ───
+   Existing dashboard pages use bg-white / bg-gray-50 / text-gray-900 etc.
+   Remap them to the Resurface tokens so everything inherits the dark shell
+   without touching every page. */
+.bg-white { background: var(--rs-bg-surface) !important; }
+.bg-gray-50 { background: var(--rs-bg-elevated) !important; }
+.bg-gray-100 { background: var(--rs-bg-hover) !important; }
+.bg-gray-200 { background: var(--rs-bg-overlay) !important; }
+
+.text-gray-900 { color: var(--rs-text-primary) !important; }
+.text-gray-800 { color: var(--rs-text-primary) !important; }
+.text-gray-700 { color: var(--rs-text-primary) !important; }
+.text-gray-600 { color: var(--rs-text-secondary) !important; }
+.text-gray-500 { color: var(--rs-text-secondary) !important; }
+.text-gray-400 { color: var(--rs-text-tertiary) !important; }
+.text-gray-300 { color: var(--rs-text-tertiary) !important; }
+
+.border-gray-100,
+.border-gray-200,
+.border-gray-300 { border-color: var(--rs-border-subtle) !important; }
+
+.hover\:bg-gray-50:hover { background: var(--rs-bg-hover) !important; }
+.hover\:bg-gray-100:hover { background: var(--rs-bg-hover) !important; }
+.hover\:text-gray-900:hover { color: var(--rs-text-primary) !important; }
+.hover\:text-gray-700:hover { color: var(--rs-text-primary) !important; }
+
+/* Primary action buttons — the "bg-gray-900" used throughout maps to teal */
+.bg-gray-900,
+.hover\:bg-gray-800:hover { background: var(--rs-teal-400) !important; color: var(--rs-teal-900) !important; }
+.bg-gray-900:hover { background: var(--rs-teal-300) !important; }
+.text-white { color: var(--rs-teal-900); }
+
+/* Status pill palette (aligns with design system) */
+.bg-amber-100 { background: rgba(251,191,36,0.12) !important; }
+.text-amber-800, .text-amber-700 { color: var(--rs-amber-200) !important; }
+.bg-green-100 { background: rgba(74,222,128,0.10) !important; }
+.text-green-800, .text-green-700 { color: var(--rs-green-300) !important; }
+.bg-red-50 { background: rgba(239,68,68,0.10) !important; }
+.text-red-600, .text-red-700 { color: var(--rs-red-400) !important; }
+.bg-blue-50 { background: rgba(45,212,191,0.08) !important; }
+.text-blue-600, .text-blue-700, .text-blue-800 { color: var(--rs-teal-300) !important; }
+
+/* Focus rings → teal */
+.focus\:ring-gray-900:focus,
+.focus\:ring-gray-300:focus { --tw-ring-color: rgba(45,212,191,0.35) !important; }
+.focus\:border-gray-300:focus { border-color: var(--rs-teal-600) !important; }
+
+/* Cards — soften drop shadow on dark */
+.shadow-sm { box-shadow: none !important; }
+.shadow-lg { box-shadow: 0 8px 24px rgba(0,0,0,0.40) !important; }
+.shadow-xl { box-shadow: 0 12px 32px rgba(0,0,0,0.50) !important; }
+
+/* Inputs/textareas default surface */
+input[type="text"], input[type="email"], input[type="password"],
+input[type="url"], input[type="time"], input[type="datetime-local"],
+select, textarea {
+  background: var(--rs-bg-elevated);
+  color: var(--rs-text-primary);
+  border-color: var(--rs-border-default);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

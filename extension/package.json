@@ -1,0 +1,14 @@
+{
+  "name": "resurface-extension",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc && cp src/prompt.css dist/prompt.css",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-code": "^2.1.109",
+    "@types/chrome": "^0.1.40",
+    "typescript": "^5.4.0"
+  }
+}
