@@ -34,6 +34,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Prisma client must be generated before tsc — without it
+      # @prisma/client exports nothing and every Prisma type resolves to `any`.
+      - name: Generate Prisma client
+        run: npx prisma generate
+
       - name: Type-check
         run: npx tsc --noEmit
 

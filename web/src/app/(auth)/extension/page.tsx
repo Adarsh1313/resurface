@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, startTransition } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 
@@ -17,7 +17,9 @@ export default function ExtensionBridgePage() {
 
   useEffect(() => {
     hydrate();
-    setToken(localStorage.getItem('token'));
+    startTransition(() => {
+      setToken(localStorage.getItem('token'));
+    });
   }, [hydrate]);
 
   if (token === null) {

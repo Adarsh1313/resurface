@@ -357,7 +357,7 @@ function TopicsSection() {
           <div
             style={{ padding: '24px 14px', font: '400 13px/1.4 var(--font-geist-sans)', color: 'var(--rs-text-tertiary)' }}
           >
-            No topics yet — they'll appear here as you tag your saves.
+            No topics yet &mdash; they&apos;ll appear here as you tag your saves.
           </div>
         ) : (
           topics.map((t) => {

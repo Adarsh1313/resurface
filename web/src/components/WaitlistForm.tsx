@@ -30,9 +30,9 @@ export function WaitlistForm({ source = 'landing' }: { source?: string }) {
       }
       setState('done');
       setMessage("You're in. We'll email you when the extension ships.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setState('error');
-      setMessage(err.message || 'Could not reach the server.');
+      setMessage(err instanceof Error ? err.message : 'Could not reach the server.');
     }
   }
 

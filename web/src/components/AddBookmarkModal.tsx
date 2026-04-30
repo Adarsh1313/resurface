@@ -264,7 +264,7 @@ export function AddBookmarkModal({ onClose }: { onClose: () => void }) {
               </div>
             )}
             {topicInput && !existingTopics.some((t) => t.name.toLowerCase() === topicInput.toLowerCase()) && (
-              <p className="mt-1 text-xs text-blue-600">Press Enter to create "{topicInput}"</p>
+              <p className="mt-1 text-xs text-blue-600">Press Enter to create &ldquo;{topicInput}&rdquo;</p>
             )}
             {suggestions.length > 0 && (
               <div className="mt-2 flex items-center gap-1.5 flex-wrap">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, startTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 
@@ -16,7 +16,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!token) {
       router.replace('/login');
     } else {
-      setChecked(true);
+      startTransition(() => setChecked(true));
     }
   }, [hydrate, router]);
 

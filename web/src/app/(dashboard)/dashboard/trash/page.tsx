@@ -79,7 +79,7 @@ export default function TrashPage() {
         />
       ) : (
         <div className="space-y-3">
-          {items.map((b: any) => {
+          {items.map((b) => {
             const days = b.deleted_at ? daysUntilPurge(b.deleted_at) : 15;
             return (
               <div key={b.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
