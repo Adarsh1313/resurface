@@ -3,8 +3,6 @@ generator client {
 }
 
 datasource db {
-  // Prisma 7: URL is configured in prisma.config.ts, NOT here.
-  // Only the provider is declared in the schema.
   provider = "postgresql"
 }
 

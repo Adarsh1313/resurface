@@ -1,8 +1,10 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-// Prisma 7: PrismaClient reads DATABASE_URL from the environment automatically.
-// The datasource URL is configured in prisma.config.ts for CLI tooling; at
-// runtime the client picks it up from process.env.DATABASE_URL directly.
-const prisma = new PrismaClient();
+// Prisma 7 requires a driver adapter for runtime database access.
+// The CLI (migrate, generate) uses prisma.config.ts for the URL;
+// at runtime we pass the URL via the PrismaPg adapter.
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 export default prisma;
