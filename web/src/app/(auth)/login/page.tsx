@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -19,9 +19,11 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useAuthStore((s) => s.login);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const passwordReset = searchParams.get('reset') === '1';
 
   const {
     register,
@@ -52,6 +54,11 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+          {passwordReset && (
+            <div className="mb-4 p-3 rounded-lg bg-green-50 text-green-700 text-sm">
+              Password updated. You can now log in.
+            </div>
+          )}
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
           )}
@@ -74,9 +81,14 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <Link href="/forgot-password" className="text-xs text-gray-500 hover:text-gray-900">
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 id="password"
                 type="password"

@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { z } from 'zod';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest, signToken } from '../middleware/auth';
+import { sendEmail } from '../lib/email';
 
 const router = Router();
 
@@ -73,6 +75,88 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const token = signToken(user.id);
     res.json({ user: sanitizeUser(user), token });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8),
+});
+
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const parsed = forgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid email' });
+      return;
+    }
+
+    const { email } = parsed.data;
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    // Always respond 200 to prevent email enumeration
+    if (!user) {
+      res.json({ message: 'If that email exists, a reset link has been sent.' });
+      return;
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires_at = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.passwordResetToken.create({
+      data: { user_id: user.id, token, expires_at },
+    });
+
+    const baseUrl = process.env.ALLOWED_ORIGINS?.split(',')[0] ?? 'http://localhost:3000';
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+
+    await sendEmail({
+      to: email,
+      subject: 'Reset your Resurface password',
+      html: `
+        <p>Hi ${user.name},</p>
+        <p>Click the link below to reset your password. It expires in 1 hour.</p>
+        <p><a href="${resetUrl}">${resetUrl}</a></p>
+        <p>If you didn't request this, you can ignore this email.</p>
+      `,
+    });
+
+    res.json({ message: 'If that email exists, a reset link has been sent.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const parsed = resetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() });
+      return;
+    }
+
+    const { token, password } = parsed.data;
+
+    const record = await prisma.passwordResetToken.findUnique({ where: { token } });
+    if (!record || record.used || record.expires_at < new Date()) {
+      res.status(400).json({ error: 'Invalid or expired reset token' });
+      return;
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: record.user_id }, data: { password_hash } }),
+      prisma.passwordResetToken.update({ where: { id: record.id }, data: { used: true } }),
+    ]);
+
+    res.json({ message: 'Password updated successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
