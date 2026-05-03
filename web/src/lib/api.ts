@@ -50,6 +50,10 @@ export const api = {
       apiFetch<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
     register: (data: { email: string; password: string; name: string }) =>
       apiFetch<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+    forgotPassword: (data: { email: string }) =>
+      apiFetch<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify(data) }),
+    resetPassword: (data: { token: string; password: string }) =>
+      apiFetch<{ message: string }>('/auth/reset-password', { method: 'POST', body: JSON.stringify(data) }),
   },
   bookmarks: {
     list: (params?: Record<string, string>) => {
