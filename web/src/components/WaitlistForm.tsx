@@ -1,12 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
-const DEFAULT_API_BASE =
-  process.env.NODE_ENV === 'production'
-    ? 'https://resurface-nclr.onrender.com/v1'
-    : 'http://localhost:4000/v1';
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || DEFAULT_API_BASE).replace(/\/$/, '');
+const API_BASE = API_BASE_URL;
 
 export function WaitlistForm({ source = 'landing' }: { source?: string }) {
   const [email, setEmail] = useState('');
