@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { sendEmail } from '../lib/email';
+import { escapeHtml } from '../lib/html';
 
 const router = Router();
 router.use(authMiddleware);
@@ -36,15 +37,15 @@ function buildDigestHtml(userName: string, bookmarks: any[]): string {
     .map(
       (b: any) =>
         `<li>
-          <strong>${b.title || b.url}</strong>
-          ${b.author ? `<br>by ${b.author}` : ''}
-          ${b.platform ? `<br><em>${b.platform}</em>` : ''}
+          <strong>${escapeHtml(b.title || b.url)}</strong>
+          ${b.author ? `<br>by ${escapeHtml(b.author)}` : ''}
+          ${b.platform ? `<br><em>${escapeHtml(b.platform)}</em>` : ''}
         </li>`,
     )
     .join('\n');
 
   return `
-    <h2>Hey ${userName},</h2>
+    <h2>Hey ${escapeHtml(userName)},</h2>
     <p>Here are your top ${bookmarks.length} unreviewed saves this week:</p>
     <ol>${items}</ol>
     <p>Open Resurface to review them before they pile up!</p>

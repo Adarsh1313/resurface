@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable react-hooks/incompatible-library */
 import { useState, useMemo } from 'react';
 import {
   useReactTable,
@@ -40,7 +41,6 @@ import { ReminderMenu } from '@/components/ReminderMenu';
 import { TopicChips } from '@/components/TopicChips';
 import { PlatformPill } from '@/components/PlatformPill';
 import { StatusPill } from '@/components/StatusPill';
-import { EmptyState } from '@/components/EmptyState';
 import { Sparkline, fakeWeekSeries } from '@/components/Sparkline';
 import { useSearch } from '@/lib/search-context';
 import { AddBookmarkModal } from '@/components/AddBookmarkModal';

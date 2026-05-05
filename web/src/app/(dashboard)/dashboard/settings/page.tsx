@@ -21,7 +21,7 @@ import { useAuthStore } from '@/lib/store';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useTopics, useSendDigest } from '@/lib/hooks';
-import { TopicChips, topicColor } from '@/components/TopicChips';
+import { topicColor } from '@/components/TopicChips';
 
 type Section = 'profile' | 'digest' | 'topics' | 'extension' | 'notifications' | 'account';
 

@@ -1,6 +1,7 @@
 import { AuthResponse, PaginatedBookmarks, Bookmark, Topic, DashboardStats } from './types';
+import { API_BASE_URL } from './config';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/v1';
+const BASE_URL = API_BASE_URL;
 
 class ApiError extends Error {
   status: number;
