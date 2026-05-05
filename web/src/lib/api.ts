@@ -1,6 +1,10 @@
 import { AuthResponse, PaginatedBookmarks, Bookmark, Topic, DashboardStats } from './types';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/v1';
+const DEFAULT_API_BASE =
+  process.env.NODE_ENV === 'production'
+    ? 'https://resurface-nclr.onrender.com/v1'
+    : 'http://localhost:4000/v1';
+const BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || DEFAULT_API_BASE).replace(/\/$/, '');
 
 class ApiError extends Error {
   status: number;
