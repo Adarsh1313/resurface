@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma';
 import { sendEmail } from '../lib/email';
+import { escapeHtml, escapeHtmlAttribute } from '../lib/html';
 
 function buildReminderHtml(params: {
   userName: string;
@@ -34,24 +35,24 @@ function buildReminderHtml(params: {
             </table>
           </td></tr>
           <tr><td style="padding:24px;">
-            <p style="margin:0 0 8px 0;font-size:14px;color:#9b9690;">Hey ${userName},</p>
+            <p style="margin:0 0 8px 0;font-size:14px;color:#9b9690;">Hey ${escapeHtml(userName)},</p>
             <p style="margin:0 0 20px 0;font-size:14px;color:#9b9690;line-height:1.5;">
               You asked me to ping you about this — here it is.
             </p>
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#1e1e1b;border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
               <tr><td style="padding:16px 18px;">
                 <div style="font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:#5e5b57;margin-bottom:8px;">
-                  ${platformLabel}
+                  ${escapeHtml(platformLabel)}
                 </div>
                 <div style="font-size:15px;font-weight:500;color:#f0ede8;line-height:1.4;margin-bottom:6px;">
-                  ${safeTitle}
+                  ${escapeHtml(safeTitle)}
                 </div>
-                ${author ? `<div style="font-size:12px;color:#9b9690;">by ${author}</div>` : ''}
+                ${author ? `<div style="font-size:12px;color:#9b9690;">by ${escapeHtml(author)}</div>` : ''}
               </td></tr>
             </table>
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
               <tr><td style="border-radius:8px;background:#2dd4bf;">
-                <a href="${url}" style="display:inline-block;padding:10px 18px;font-size:13px;font-weight:500;color:#042f2e;text-decoration:none;letter-spacing:-0.01em;">
+                <a href="${escapeHtmlAttribute(url)}" style="display:inline-block;padding:10px 18px;font-size:13px;font-weight:500;color:#042f2e;text-decoration:none;letter-spacing:-0.01em;">
                   Open the save →
                 </a>
               </td></tr>
