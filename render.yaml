@@ -22,7 +22,21 @@ services:
         generateValue: true   # Render auto-generates a secure random value
       - key: ALLOWED_ORIGINS
         sync: false           # Set to your Vercel URL in Render dashboard
+      - key: ADMIN_EMAILS
+        sync: false           # Comma-separated owner/admin emails for /dashboard/admin
+      - key: REQUIRE_INVITE
+        value: "true"         # Require admin-sent invite links for new beta signups
+      - key: PUBLIC_APP_URL
+        sync: false           # Your Vercel app URL, used in waitlist/invite emails
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
         sync: false

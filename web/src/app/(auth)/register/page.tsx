@@ -4,8 +4,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { AuthResponse } from '@/lib/types';
@@ -18,8 +18,11 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get('invite') || undefined;
+  const invitedEmail = searchParams.get('email') || '';
   const login = useAuthStore((s) => s.login);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,13 +31,16 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: invitedEmail },
+  });
 
   const onSubmit = async (data: FormData) => {
     setError('');
     setLoading(true);
     try {
-      const res = (await api.auth.register(data)) as AuthResponse;
+      const res = (await api.auth.register({ ...data, invite_token: inviteToken })) as AuthResponse;
       login(res);
       router.push('/dashboard');
     } catch (err: unknown) {
@@ -157,5 +163,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 text-sm text-gray-500">Loading...</div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }

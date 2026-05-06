@@ -12,6 +12,7 @@ import aiRoutes from './routes/ai';
 import digestRoutes from './routes/digest';
 import reminderRoutes from './routes/reminders';
 import waitlistRoutes from './routes/waitlist';
+import adminRoutes from './routes/admin';
 import { processDueReminders } from './workers/reminders';
 import prisma from './lib/prisma';
 
@@ -55,6 +56,7 @@ app.use('/v1/ai', aiRoutes);
 app.use('/v1/digest', digestRoutes);
 app.use('/v1/reminders', reminderRoutes);
 app.use('/v1/waitlist', waitlistRoutes);
+app.use('/v1/admin', adminRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });

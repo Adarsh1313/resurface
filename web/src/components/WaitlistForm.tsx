@@ -30,7 +30,7 @@ export function WaitlistForm({ source = 'landing' }: { source?: string }) {
         throw new Error(data.error || 'Something went wrong');
       }
       setState('done');
-      setMessage("You're in. We'll email you when the extension ships.");
+      setMessage("You're in. Check your inbox for a waitlist confirmation.");
     } catch (err: unknown) {
       setState('error');
       setMessage(err instanceof Error ? err.message : 'Could not reach the server.');

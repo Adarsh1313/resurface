@@ -12,6 +12,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   name: z.string().min(1),
+  invite_token: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -24,6 +25,13 @@ function sanitizeUser(user: any) {
   return rest;
 }
 
+function adminEmails() {
+  return (process.env.ADMIN_EMAILS || process.env.OWNER_EMAIL || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const parsed = registerSchema.safeParse(req.body);
@@ -32,9 +40,21 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
 
-    const { email, password, name } = parsed.data;
+    const { email, password, name, invite_token } = parsed.data;
+    const normalizedEmail = email.trim().toLowerCase();
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    if (process.env.REQUIRE_INVITE === 'true' && !adminEmails().includes(normalizedEmail)) {
+      const invite = invite_token
+        ? await prisma.waitlistEntry.findUnique({ where: { invite_token } })
+        : null;
+
+      if (!invite || invite.email.toLowerCase() !== normalizedEmail || invite.status !== 'invited') {
+        res.status(403).json({ error: 'Private beta invite required' });
+        return;
+      }
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       res.status(400).json({ error: 'Email already registered' });
       return;
@@ -42,7 +62,7 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const password_hash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { email, name, password_hash },
+      data: { email: normalizedEmail, name, password_hash },
     });
 
     const token = signToken(user.id);

@@ -49,3 +49,26 @@ export interface PaginatedBookmarks {
   page: number;
   limit: number;
 }
+
+export interface WaitlistEntry {
+  id: string;
+  email: string;
+  source?: string | null;
+  referrer?: string | null;
+  user_agent?: string | null;
+  ip?: string | null;
+  status: 'pending' | 'invited';
+  invite_token?: string | null;
+  invited_at?: string | null;
+  created_at: string;
+}
+
+export interface AdminWaitlistResponse {
+  entries: WaitlistEntry[];
+  counts: {
+    total: number;
+    pending: number;
+    invited: number;
+    users: number;
+  };
+}

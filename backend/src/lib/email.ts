@@ -1,3 +1,5 @@
+import nodemailer from 'nodemailer';
+
 interface EmailMessage {
   to: string;
   subject: string;
@@ -64,9 +66,36 @@ function logToConsole(message: EmailMessage) {
 export async function sendEmail(message: EmailMessage): Promise<{ success: true; messageId: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromAddress = process.env.EMAIL_FROM || 'Resurface <onboarding@resend.dev>';
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
 
   // Always log for observability during dev.
   logToConsole(message);
+
+  if (smtpHost && smtpPort && smtpUser && smtpPass) {
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to: message.to,
+      subject: message.subject,
+      html: message.html,
+      text: message.text || stripHtml(message.html),
+    });
+
+    console.log(`  SMTP delivered (id=${info.messageId})\n`);
+    return { success: true, messageId: info.messageId };
+  }
 
   if (!apiKey) {
     return { success: true, messageId: 'console-' + Date.now() };

@@ -1,4 +1,4 @@
-import { AuthResponse, PaginatedBookmarks, Bookmark, Topic, DashboardStats } from './types';
+import { AuthResponse, PaginatedBookmarks, Bookmark, Topic, DashboardStats, AdminWaitlistResponse } from './types';
 import { API_BASE_URL } from './config';
 
 const BASE_URL = API_BASE_URL;
@@ -49,7 +49,7 @@ export const api = {
   auth: {
     login: (data: { email: string; password: string }) =>
       apiFetch<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
-    register: (data: { email: string; password: string; name: string }) =>
+    register: (data: { email: string; password: string; name: string; invite_token?: string }) =>
       apiFetch<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     forgotPassword: (data: { email: string }) =>
       apiFetch<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify(data) }),
@@ -97,5 +97,10 @@ export const api = {
   ai: {
     suggestTopic: (data: { title: string; platform: string; author?: string }) =>
       apiFetch<{ suggestions: string[] }>(`/ai/suggest-topic`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  admin: {
+    waitlist: () => apiFetch<AdminWaitlistResponse>('/admin/waitlist'),
+    inviteWaitlistEntry: (id: string) =>
+      apiFetch<{ success: boolean; entry: unknown }>(`/admin/waitlist/${id}/invite`, { method: 'POST' }),
   },
 };

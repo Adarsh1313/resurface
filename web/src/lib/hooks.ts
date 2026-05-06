@@ -103,6 +103,24 @@ export function useSetReminder() {
   });
 }
 
+export function useAdminWaitlist() {
+  return useQuery({
+    queryKey: ['admin', 'waitlist'],
+    queryFn: () => api.admin.waitlist(),
+    refetchInterval: 30000,
+  });
+}
+
+export function useInviteWaitlistEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.admin.inviteWaitlistEntry(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'waitlist'] });
+    },
+  });
+}
+
 export function useDeleteBookmark() {
   const queryClient = useQueryClient();
   return useMutation({
