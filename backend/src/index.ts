@@ -19,7 +19,7 @@ import prisma from './lib/prisma';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// CORS allow-list: localhost + any domain listed in ALLOWED_ORIGINS (comma-separated).
+// CORS allow-list: localhost + any *.vercel.app + domains in ALLOWED_ORIGINS.
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((s) => s.trim())

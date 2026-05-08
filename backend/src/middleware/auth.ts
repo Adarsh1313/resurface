@@ -38,5 +38,5 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 }
 
 export function signToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: '7d' });
 }
