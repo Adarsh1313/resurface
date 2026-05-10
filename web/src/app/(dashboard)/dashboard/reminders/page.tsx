@@ -1,9 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Bell, CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
 import { useBookmarks, useReviewBookmark, normalizeBookmark, relativeTime } from '@/lib/hooks';
 import { PlatformPill } from '@/components/PlatformPill';
 import { EmptyState } from '@/components/EmptyState';
+import { useSearch } from '@/lib/search-context';
 
 function formatReminder(dateStr: string) {
   const date = new Date(dateStr);
@@ -18,11 +20,21 @@ function formatReminder(dateStr: string) {
 }
 
 export default function RemindersPage() {
-  const { data, isLoading } = useBookmarks({ limit: '200' });
+  const { query } = useSearch();
+  const searchParams = useMemo(() => {
+    const p: Record<string, string> = { limit: '200' };
+    if (query) p.q = query;
+    return p;
+  }, [query]);
+  const { data, isLoading } = useBookmarks(searchParams);
   const review = useReviewBookmark();
-  const reminders = (data?.bookmarks || [])
-    .map(normalizeBookmark)
-    .filter((b) => b.reminder_at);
+  const reminders = useMemo(
+    () =>
+      (data?.bookmarks || [])
+        .map(normalizeBookmark)
+        .filter((b) => b.reminder_at),
+    [data]
+  );
 
   return (
     <div>
@@ -40,8 +52,8 @@ export default function RemindersPage() {
       ) : reminders.length === 0 ? (
         <EmptyState
           icon={Bell}
-          title="No reminders set"
-          body="Set a reminder when you save a bookmark and it'll show up here when the time comes."
+          title={query ? `No reminders match "${query}"` : 'No reminders set'}
+          body={query ? 'Try a different search term.' : "Set a reminder when you save a bookmark and it'll show up here when the time comes."}
         />
       ) : (
         <div className="space-y-3">

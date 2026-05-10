@@ -1,13 +1,21 @@
 'use client';
 
+import { useMemo } from 'react';
 import { ExternalLink, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 import { useBookmarks, useDeleteBookmark, normalizeBookmark, relativeTime } from '@/lib/hooks';
 import { TopicChips } from '@/components/TopicChips';
 import { PlatformPill } from '@/components/PlatformPill';
 import { EmptyState } from '@/components/EmptyState';
+import { useSearch } from '@/lib/search-context';
 
 export default function ReviewedPage() {
-  const { data, isLoading } = useBookmarks({ status: 'reviewed', limit: '100' });
+  const { query } = useSearch();
+  const searchParams = useMemo(() => {
+    const p: Record<string, string> = { status: 'reviewed', limit: '100' };
+    if (query) p.q = query;
+    return p;
+  }, [query]);
+  const { data, isLoading } = useBookmarks(searchParams);
   const del = useDeleteBookmark();
   const reviewed = (data?.bookmarks || []).map(normalizeBookmark);
 
@@ -27,8 +35,8 @@ export default function ReviewedPage() {
       ) : reviewed.length === 0 ? (
         <EmptyState
           icon={CheckCircle2}
-          title="Nothing reviewed yet"
-          body="Mark a save as reviewed from the dashboard and it'll land here."
+          title={query ? `No reviewed bookmarks match "${query}"` : 'Nothing reviewed yet'}
+          body={query ? 'Try a different search term.' : "Mark a save as reviewed from the dashboard and it'll land here."}
         />
       ) : (
         <div className="space-y-3">

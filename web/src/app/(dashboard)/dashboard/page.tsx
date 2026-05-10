@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable react-hooks/incompatible-library */
 import { useState, useMemo } from 'react';
 import {
   useReactTable,
@@ -40,7 +41,6 @@ import { ReminderMenu } from '@/components/ReminderMenu';
 import { TopicChips } from '@/components/TopicChips';
 import { PlatformPill } from '@/components/PlatformPill';
 import { StatusPill } from '@/components/StatusPill';
-import { EmptyState } from '@/components/EmptyState';
 import { Sparkline, fakeWeekSeries } from '@/components/Sparkline';
 import { useSearch } from '@/lib/search-context';
 import { AddBookmarkModal } from '@/components/AddBookmarkModal';
@@ -60,7 +60,12 @@ export default function DashboardPage() {
   const [digestMsg, setDigestMsg] = useState('');
   const { query } = useSearch();
 
-  const { data: bookmarksData, isLoading } = useBookmarks({ limit: '100' });
+  const searchParams = useMemo(() => {
+    const p: Record<string, string> = { limit: '100' };
+    if (query && query !== '__unlabelled__') p.q = query;
+    return p;
+  }, [query]);
+  const { data: bookmarksData, isLoading } = useBookmarks(searchParams);
   const { data: statsData } = useDashboardStats();
   const { data: topicsData } = useTopics();
 

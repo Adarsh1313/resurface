@@ -145,6 +145,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       topic_id,
       status,
       trash,
+      q,
       sort = 'saved_at',
       order = 'desc',
       page = '1',
@@ -161,6 +162,12 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     if (platform) where.platform = platform;
     if (topic_id) where.topics = { some: { id: topic_id } };
     if (status) where.status = status;
+    if (q && q.trim()) {
+      where.OR = [
+        { title: { contains: q.trim(), mode: 'insensitive' } },
+        { author: { contains: q.trim(), mode: 'insensitive' } },
+      ];
+    }
 
     const orderBy: any = {};
     const sortField = sort === 'title' ? 'title' : 'saved_at';
