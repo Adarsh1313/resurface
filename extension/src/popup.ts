@@ -1,5 +1,5 @@
-const WEB_BASE_URL = "http://localhost:3000";
-const API_BASE_URL = "http://localhost:4000/v1";
+const WEB_BASE_URL = "https://resurface-web-eight.vercel.app";
+const API_BASE_URL = "https://resurface-nclr.onrender.com/v1";
 
 interface PendingCapture {
   url: string;
