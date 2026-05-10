@@ -1,4 +1,4 @@
-import { AuthResponse, PaginatedBookmarks, Bookmark, Topic, DashboardStats, AdminWaitlistResponse } from './types';
+import { AuthResponse, PaginatedBookmarks, Bookmark, Topic, DashboardStats, AdminWaitlistResponse, User } from './types';
 import { API_BASE_URL } from './config';
 
 const BASE_URL = API_BASE_URL;
@@ -55,6 +55,10 @@ export const api = {
       apiFetch<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify(data) }),
     resetPassword: (data: { token: string; password: string }) =>
       apiFetch<{ message: string }>('/auth/reset-password', { method: 'POST', body: JSON.stringify(data) }),
+    updateProfile: (data: { name: string }) =>
+      apiFetch<{ user: User }>('/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteAccount: () =>
+      apiFetch<void>('/auth/account', { method: 'DELETE' }),
   },
   bookmarks: {
     list: (params?: Record<string, string>) => {
@@ -84,6 +88,10 @@ export const api = {
   },
   topics: {
     list: () => apiFetch<{ topics: Topic[] }>('/topics'),
+    rename: (id: string, name: string) =>
+      apiFetch<{ topic: Topic }>(`/topics/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
+    delete: (id: string) =>
+      apiFetch<void>(`/topics/${id}`, { method: 'DELETE' }),
   },
   stats: {
     dashboard: () => apiFetch<DashboardStats>('/stats/dashboard'),

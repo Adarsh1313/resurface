@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   LogOut,
   Loader2,
@@ -16,11 +16,13 @@ import {
   Eye,
   Copy,
   Trash2,
+  Pencil,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { useMutation } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { useTopics, useSendDigest } from '@/lib/hooks';
+import { api, apiFetch } from '@/lib/api';
+import { useTopics, useSendDigest, useRenameTopic, useDeleteTopic } from '@/lib/hooks';
 import { topicColor } from '@/components/TopicChips';
 
 type Section = 'profile' | 'digest' | 'topics' | 'extension' | 'notifications' | 'account';
@@ -147,17 +149,126 @@ const dangerBtn: React.CSSProperties = {
   borderColor: 'rgba(239,68,68,0.30)',
 };
 
+const ghostIconBtn: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 4,
+  background: 'transparent',
+  border: 'none',
+  borderRadius: 4,
+  cursor: 'pointer',
+  color: 'var(--rs-text-tertiary)',
+};
+
 // ─── Sections ─────────────────────────────────────────────────────
 
 function ProfileSection() {
   const user = useAuthStore((s) => s.user);
+  const storeLogin = useAuthStore((s) => s.login);
+  const token = useAuthStore((s) => s.token);
+  const [editing, setEditing] = useState(false);
+  const [nameInput, setNameInput] = useState(user?.name || '');
+  const [feedback, setFeedback] = useState('');
+  const [isError, setIsError] = useState(false);
+
+  const updateMutation = useMutation({
+    mutationFn: (name: string) => api.auth.updateProfile({ name }),
+    onSuccess: (data) => {
+      if (token) {
+        storeLogin({ user: data.user, token });
+      }
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setEditing(false);
+      setFeedback('Saved');
+      setIsError(false);
+      setTimeout(() => setFeedback(''), 2000);
+    },
+    onError: (e) => {
+      setFeedback((e as Error).message);
+      setIsError(true);
+      setTimeout(() => setFeedback(''), 3000);
+    },
+  });
+
+  const handleEdit = () => {
+    setNameInput(user?.name || '');
+    setEditing(true);
+  };
+
+  const handleCancel = () => {
+    setEditing(false);
+    setNameInput(user?.name || '');
+  };
+
+  const handleSave = () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed) return;
+    updateMutation.mutate(trimmed);
+  };
+
   return (
     <>
       <PageHeader title="Profile" body="Shown in the digest greeting and nowhere else." />
       <Row label="Name">
-        <div style={{ font: '400 13px/1.4 var(--font-geist-sans)', color: 'var(--rs-text-primary)' }}>
-          {user?.name || '—'}
-        </div>
+        {editing ? (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              autoFocus
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSave();
+                if (e.key === 'Escape') handleCancel();
+              }}
+              style={{
+                padding: '6px 10px',
+                background: 'var(--rs-bg-elevated)',
+                border: '0.5px solid var(--rs-border-default)',
+                borderRadius: 'var(--rs-radius-md)',
+                font: '400 13px/1.4 var(--font-geist-sans)',
+                color: 'var(--rs-text-primary)',
+                outline: 'none',
+                minWidth: 180,
+              }}
+            />
+            <button
+              onClick={handleSave}
+              disabled={updateMutation.isPending || !nameInput.trim()}
+              style={primaryBtn}
+            >
+              {updateMutation.isPending ? (
+                <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
+              ) : (
+                <Check style={{ width: 13, height: 13 }} />
+              )}
+              Save
+            </button>
+            <button onClick={handleCancel} style={secondaryBtn}>
+              <X style={{ width: 13, height: 13 }} />
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ font: '400 13px/1.4 var(--font-geist-sans)', color: 'var(--rs-text-primary)' }}>
+              {user?.name || '—'}
+            </div>
+            <button onClick={handleEdit} style={ghostIconBtn} title="Edit name">
+              <Pencil style={{ width: 13, height: 13 }} />
+            </button>
+            {feedback && (
+              <span
+                style={{
+                  font: '400 12px/1 var(--font-geist-sans)',
+                  color: isError ? 'var(--rs-red-400)' : 'var(--rs-teal-300)',
+                }}
+              >
+                {feedback}
+              </span>
+            )}
+          </div>
+        )}
       </Row>
       <Row label="Email" help="Where your digest is sent.">
         <div style={{ font: '400 13px/1.4 var(--font-geist-sans)', color: 'var(--rs-text-primary)' }}>
@@ -339,12 +450,133 @@ function Segmented<T extends string | number>({
   );
 }
 
+function TopicRow({ topic }: { topic: { id: string; name: string; color: string; count: number } }) {
+  const [editing, setEditing] = useState(false);
+  const [nameInput, setNameInput] = useState(topic.name);
+  const renameMutation = useRenameTopic();
+  const deleteMutation = useDeleteTopic();
+  const c = topicColor(topic.name);
+
+  const handleSave = () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === topic.name) {
+      setEditing(false);
+      return;
+    }
+    renameMutation.mutate(
+      { id: topic.id, name: trimmed },
+      { onSuccess: () => setEditing(false), onError: () => setEditing(false) }
+    );
+  };
+
+  const handleDelete = () => {
+    if (!window.confirm(`Delete topic "${topic.name}"? This won't delete the bookmarks.`)) return;
+    deleteMutation.mutate(topic.id);
+  };
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 14px',
+        borderRadius: 6,
+      }}
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          background: c.color,
+          flexShrink: 0,
+        }}
+      />
+      {editing ? (
+        <>
+          <input
+            autoFocus
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave();
+              if (e.key === 'Escape') {
+                setNameInput(topic.name);
+                setEditing(false);
+              }
+            }}
+            style={{
+              flex: 1,
+              padding: '4px 8px',
+              background: 'var(--rs-bg-elevated)',
+              border: '0.5px solid var(--rs-border-default)',
+              borderRadius: 'var(--rs-radius-md)',
+              font: '500 13px/1 var(--font-geist-sans)',
+              color: 'var(--rs-text-primary)',
+              outline: 'none',
+            }}
+          />
+          <button
+            onClick={handleSave}
+            disabled={renameMutation.isPending}
+            style={{ ...ghostIconBtn, color: 'var(--rs-teal-400)' }}
+            title="Save"
+          >
+            {renameMutation.isPending ? (
+              <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
+            ) : (
+              <Check style={{ width: 13, height: 13 }} />
+            )}
+          </button>
+          <button
+            onClick={() => { setNameInput(topic.name); setEditing(false); }}
+            style={ghostIconBtn}
+            title="Cancel"
+          >
+            <X style={{ width: 13, height: 13 }} />
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            onClick={() => { setNameInput(topic.name); setEditing(true); }}
+            style={{
+              flex: 1,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              font: '500 13px/1 var(--font-geist-sans)',
+              color: 'var(--rs-text-primary)',
+              cursor: 'text',
+              textAlign: 'left',
+            }}
+            title="Click to rename"
+          >
+            {topic.name}
+          </button>
+          <span style={{ font: '400 11px/1 var(--font-geist-sans)', color: 'var(--rs-text-tertiary)' }}>
+            {topic.count} saves
+          </span>
+          <button onClick={handleDelete} disabled={deleteMutation.isPending} style={ghostIconBtn} title="Delete topic">
+            {deleteMutation.isPending ? (
+              <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
+            ) : (
+              <Trash2 style={{ width: 13, height: 13 }} />
+            )}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function TopicsSection() {
   const { data } = useTopics();
   const topics = data?.topics || [];
   return (
     <>
-      <PageHeader title="Topics" body="Your own folders. Auto-coloured by name." />
+      <PageHeader title="Topics" body="Your own folders. Auto-coloured by name. Click a name to rename." />
       <div
         style={{
           background: 'var(--rs-bg-surface)',
@@ -360,36 +592,7 @@ function TopicsSection() {
             No topics yet &mdash; they&apos;ll appear here as you tag your saves.
           </div>
         ) : (
-          topics.map((t) => {
-            const c = topicColor(t.name);
-            return (
-              <div
-                key={t.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 14px',
-                  borderRadius: 6,
-                }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: c.color,
-                  }}
-                />
-                <div style={{ font: '500 13px/1 var(--font-geist-sans)', color: 'var(--rs-text-primary)', flex: 1 }}>
-                  {t.name}
-                </div>
-                <span style={{ font: '400 11px/1 var(--font-geist-sans)', color: 'var(--rs-text-tertiary)' }}>
-                  {t.count} saves
-                </span>
-              </div>
-            );
-          })
+          topics.map((t) => <TopicRow key={t.id} topic={t} />)
         )}
       </div>
     </>
@@ -496,11 +699,50 @@ function NotificationsSection() {
 function AccountSection() {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      const data = await apiFetch<unknown>('/bookmarks?limit=1000');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `resurface-export-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert((e as Error).message || 'Export failed');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Delete your account? This is permanent.')) return;
+    setDeleteLoading(true);
+    try {
+      await api.auth.deleteAccount();
+      logout();
+      router.push('/login');
+    } catch (e) {
+      alert((e as Error).message || 'Delete failed');
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <>
       <PageHeader title="Account" />
       <Row label="Export data" help="JSON. Everything you've saved.">
-        <button style={secondaryBtn}>Download</button>
+        <button onClick={handleExport} disabled={exportLoading} style={secondaryBtn}>
+          {exportLoading && <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />}
+          Download
+        </button>
       </Row>
       <Row label="Log out">
         <button
@@ -514,8 +756,13 @@ function AccountSection() {
         </button>
       </Row>
       <Row label="Delete account" help="Permanent. Data retained for 12 months for recovery.">
-        <button style={dangerBtn}>
-          <Trash2 style={{ width: 13, height: 13 }} /> Delete account
+        <button onClick={handleDelete} disabled={deleteLoading} style={dangerBtn}>
+          {deleteLoading ? (
+            <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
+          ) : (
+            <Trash2 style={{ width: 13, height: 13 }} />
+          )}
+          Delete account
         </button>
       </Row>
     </>
@@ -524,8 +771,18 @@ function AccountSection() {
 
 // ─── Page shell ───────────────────────────────────────────────────
 
-export default function SettingsPage() {
+const validSections = new Set<Section>(['profile', 'digest', 'topics', 'extension', 'notifications', 'account']);
+
+function SettingsPageInner() {
+  const searchParams = useSearchParams();
   const [active, setActive] = useState<Section>('digest');
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (section && validSections.has(section as Section)) {
+      setActive(section as Section);
+    }
+  }, [searchParams]);
 
   return (
     <div
@@ -595,5 +852,13 @@ export default function SettingsPage() {
         {active === 'account' && <AccountSection />}
       </div>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 32, color: 'var(--rs-text-tertiary)', font: '400 13px/1 var(--font-geist-sans)' }}>Loading…</div>}>
+      <SettingsPageInner />
+    </Suspense>
   );
 }

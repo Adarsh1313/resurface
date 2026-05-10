@@ -195,4 +195,34 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 });
 
+const updateProfileSchema = z.object({
+  name: z.string().min(1),
+});
+
+router.patch('/profile', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = updateProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() });
+      return;
+    }
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { name: parsed.data.name },
+    });
+    res.json({ user: sanitizeUser(user) });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/account', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.user.delete({ where: { id: req.user!.id } });
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

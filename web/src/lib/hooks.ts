@@ -132,6 +132,26 @@ export function useDeleteBookmark() {
   });
 }
 
+export function useRenameTopic() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => api.topics.rename(id, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['topics'] });
+    },
+  });
+}
+
+export function useDeleteTopic() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.topics.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['topics'] });
+    },
+  });
+}
+
 export function normalizeBookmark(b: Bookmark) {
   return {
     ...b,
