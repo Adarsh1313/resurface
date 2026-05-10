@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:4000/v1";
+const API_BASE = "https://resurface-nclr.onrender.com/v1";
 
 interface CaptureData {
   url: string;
