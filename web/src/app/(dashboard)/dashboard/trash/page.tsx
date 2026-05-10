@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Trash2, RotateCcw, ExternalLink, Loader2, AlertTriangle } from 'lucide-react';
 import { useBookmarks, useRestoreBookmark, useDeleteBookmark, normalizeBookmark, relativeTime } from '@/lib/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { PlatformPill } from '@/components/PlatformPill';
 import { EmptyState } from '@/components/EmptyState';
+import { useSearch } from '@/lib/search-context';
 
 function daysUntilPurge(deletedAt: string) {
   const elapsed = Date.now() - new Date(deletedAt).getTime();
@@ -15,7 +16,13 @@ function daysUntilPurge(deletedAt: string) {
 }
 
 export default function TrashPage() {
-  const { data, isLoading } = useBookmarks({ trash: 'true', limit: '100' });
+  const { query } = useSearch();
+  const searchParams = useMemo(() => {
+    const p: Record<string, string> = { trash: 'true', limit: '100' };
+    if (query) p.q = query;
+    return p;
+  }, [query]);
+  const { data, isLoading } = useBookmarks(searchParams);
   const restore = useRestoreBookmark();
   const del = useDeleteBookmark();
   const queryClient = useQueryClient();
@@ -74,8 +81,8 @@ export default function TrashPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={Trash2}
-          title="Trash is empty"
-          body="Deleted bookmarks appear here for 15 days before they're gone for good."
+          title={query ? `No trashed bookmarks match "${query}"` : 'Trash is empty'}
+          body={query ? 'Try a different search term.' : "Deleted bookmarks appear here for 15 days before they're gone for good."}
         />
       ) : (
         <div className="space-y-3">

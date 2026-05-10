@@ -60,7 +60,12 @@ export default function DashboardPage() {
   const [digestMsg, setDigestMsg] = useState('');
   const { query } = useSearch();
 
-  const { data: bookmarksData, isLoading } = useBookmarks({ limit: '100' });
+  const searchParams = useMemo(() => {
+    const p: Record<string, string> = { limit: '100' };
+    if (query && query !== '__unlabelled__') p.q = query;
+    return p;
+  }, [query]);
+  const { data: bookmarksData, isLoading } = useBookmarks(searchParams);
   const { data: statsData } = useDashboardStats();
   const { data: topicsData } = useTopics();
 

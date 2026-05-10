@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Plus,
 } from 'lucide-react';
 import {
   useBookmarks,
@@ -33,13 +34,22 @@ import { TopicChips } from '@/components/TopicChips';
 import { PlatformPill } from '@/components/PlatformPill';
 import { StatusPill } from '@/components/StatusPill';
 import { EmptyState } from '@/components/EmptyState';
+import { useSearch } from '@/lib/search-context';
+import { AddBookmarkModal } from '@/components/AddBookmarkModal';
 
 type Row = ReturnType<typeof normalizeBookmark>;
 const columnHelper = createColumnHelper<Row>();
 
 export default function AllSavesPage() {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'saved_at', desc: true }]);
-  const { data, isLoading } = useBookmarks({ limit: '100' });
+  const [showAdd, setShowAdd] = useState(false);
+  const { query } = useSearch();
+  const searchParams = useMemo(() => {
+    const p: Record<string, string> = { limit: '100' };
+    if (query) p.q = query;
+    return p;
+  }, [query]);
+  const { data, isLoading } = useBookmarks(searchParams);
   const review = useReviewBookmark();
   const del = useDeleteBookmark();
 
@@ -131,11 +141,20 @@ export default function AllSavesPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">All Saves</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {isLoading ? 'Loading...' : `${bookmarks.length} bookmarks saved`}
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">All Saves</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {isLoading ? 'Loading...' : `${bookmarks.length} bookmarks saved`}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+        >
+          <Plus className="w-4 h-4" />
+          Add bookmark
+        </button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -146,8 +165,8 @@ export default function AllSavesPage() {
         ) : bookmarks.length === 0 ? (
           <EmptyState
             icon={Inbox}
-            title="Nothing saved yet"
-            body="Install the extension and bookmark something on X or YouTube — it'll show up here."
+            title={query ? `No bookmarks match "${query}"` : 'Nothing saved yet'}
+            body={query ? 'Try a different search term.' : 'Install the extension and bookmark something on X or YouTube — it\'ll show up here.'}
           />
         ) : (
           <>
@@ -204,6 +223,8 @@ export default function AllSavesPage() {
           </>
         )}
       </div>
+
+      {showAdd && <AddBookmarkModal onClose={() => setShowAdd(false)} />}
     </div>
   );
 }
