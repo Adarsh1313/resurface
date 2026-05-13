@@ -212,3 +212,39 @@ select, textarea {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ================================================================
+ * Landing-page additions (from design handoff)
+ * ================================================================ */
+
+@media (pointer: fine) {
+  .landing-page {
+    cursor: none;
+  }
+  .landing-page * {
+    cursor: none;
+  }
+}
+
+@keyframes rsGlowBreathe {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+
+.landing-page input:focus-visible,
+.landing-page button:focus-visible,
+.landing-page a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.35);
+  border-radius: var(--rs-radius-sm);
+}
+
+@media (max-width: 768px) {
+  .landing-page [data-rotate="-3"],
+  .landing-page [data-rotate="4"] {
+    display: none;
+  }
+  .landing-page [data-rotate="1"] {
+    transform: scale(0.7) rotate(1deg) !important;
+  }
+}

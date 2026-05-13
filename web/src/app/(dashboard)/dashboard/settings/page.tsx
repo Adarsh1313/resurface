@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   LogOut,
@@ -775,14 +775,10 @@ const validSections = new Set<Section>(['profile', 'digest', 'topics', 'extensio
 
 function SettingsPageInner() {
   const searchParams = useSearchParams();
-  const [active, setActive] = useState<Section>('digest');
-
-  useEffect(() => {
+  const [active, setActive] = useState<Section>(() => {
     const section = searchParams.get('section');
-    if (section && validSections.has(section as Section)) {
-      setActive(section as Section);
-    }
-  }, [searchParams]);
+    return section && validSections.has(section as Section) ? (section as Section) : 'digest';
+  });
 
   return (
     <div

@@ -46,19 +46,19 @@ function logToConsole(message: EmailMessage) {
   const preview = message.text || stripHtml(message.html);
   const truncated = preview.length > 500 ? preview.slice(0, 497) + '...' : preview;
   const contentWidth = 50;
-  const border = '─'.repeat(contentWidth + 2);
-  const pad = (str: string) => `│  ${str}${''.padEnd(Math.max(0, contentWidth - str.length))}│`;
+  const border = '-'.repeat(contentWidth + 2);
+  const pad = (str: string) => `|  ${str}${''.padEnd(Math.max(0, contentWidth - str.length))}|`;
   const previewLines = wrapLines(truncated, contentWidth - 2);
   const output = [
-    `┌${border}┐`,
-    pad('📧 EMAIL'),
-    `├${border}┤`,
+    `+${border}+`,
+    pad('EMAIL'),
+    `+${border}+`,
     pad(`To:      ${message.to}`),
     pad(`Subject: ${message.subject}`),
     pad(`Time:    ${timestamp}`),
-    `├${border}┤`,
+    `+${border}+`,
     ...previewLines.map((line) => pad(line)),
-    `└${border}┘`,
+    `+${border}+`,
   ];
   console.log('\n' + output.join('\n') + '\n');
 }
@@ -66,6 +66,7 @@ function logToConsole(message: EmailMessage) {
 export async function sendEmail(message: EmailMessage): Promise<{ success: true; messageId: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromAddress = process.env.EMAIL_FROM || 'Resurface <onboarding@resend.dev>';
+  const replyTo = process.env.EMAIL_REPLY_TO;
   const smtpHost = process.env.SMTP_HOST;
   const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
   const smtpUser = process.env.SMTP_USER;
@@ -73,6 +74,33 @@ export async function sendEmail(message: EmailMessage): Promise<{ success: true;
 
   // Always log for observability during dev.
   logToConsole(message);
+
+  if (apiKey) {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: fromAddress,
+        to: message.to,
+        subject: message.subject,
+        html: message.html,
+        text: message.text || stripHtml(message.html),
+        ...(replyTo ? { reply_to: replyTo } : {}),
+      }),
+    });
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`Resend API error ${resp.status}: ${body}`);
+    }
+
+    const data = (await resp.json()) as { id: string };
+    console.log(`  Resend delivered (id=${data.id})\n`);
+    return { success: true, messageId: data.id };
+  }
 
   if (smtpHost && smtpPort && smtpUser && smtpPass) {
     const transporter = nodemailer.createTransport({
@@ -97,32 +125,5 @@ export async function sendEmail(message: EmailMessage): Promise<{ success: true;
     return { success: true, messageId: info.messageId };
   }
 
-  if (!apiKey) {
-    return { success: true, messageId: 'console-' + Date.now() };
-  }
-
-  // Send via Resend (https://resend.com/docs/api-reference/emails/send-email)
-  const resp = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: fromAddress,
-      to: message.to,
-      subject: message.subject,
-      html: message.html,
-      text: message.text || stripHtml(message.html),
-    }),
-  });
-
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`Resend API error ${resp.status}: ${body}`);
-  }
-
-  const data = (await resp.json()) as { id: string };
-  console.log(`  ✓ Resend delivered (id=${data.id})\n`);
-  return { success: true, messageId: data.id };
+  return { success: true, messageId: 'console-' + Date.now() };
 }

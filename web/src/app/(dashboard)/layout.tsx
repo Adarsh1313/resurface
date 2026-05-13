@@ -16,6 +16,7 @@ import {
   Tag,
   Plus,
   LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTopics, useBookmarks, normalizeBookmark } from '@/lib/hooks';
 import { useAuthStore } from '@/lib/store';
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/dashboard/snoozed', label: 'Snoozed', icon: Clock },
   { href: '/dashboard/reminders', label: 'Reminders', icon: Bell },
   { href: '/dashboard/trash', label: 'Trash', icon: Trash2 },
+  { href: '/dashboard/admin', label: 'Admin', icon: ShieldCheck },
 ];
 
 function NavItem({

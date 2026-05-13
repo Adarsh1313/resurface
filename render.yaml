@@ -32,6 +32,8 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      - key: EMAIL_REPLY_TO
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
