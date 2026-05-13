@@ -1,16 +1,17 @@
 'use client';
 
 import { useRef } from 'react';
+import { Bookmark, LayoutDashboard, RefreshCcw, Zap } from 'lucide-react';
 import { motion, useInView } from 'framer-motion';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
 const REVEAL_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const STEPS = [
-  { n: '01', icon: '🔖', title: 'Save', body: 'Bookmark normally on X or YouTube. The extension sees it.' },
-  { n: '02', icon: '⚡', title: 'Capture', body: 'A quiet 8-second prompt. Pick a topic, set a reminder, or skip.' },
-  { n: '03', icon: '📊', title: 'Organise', body: 'Everything lands in your dashboard — tagged and filterable.' },
-  { n: '04', icon: '🔁', title: 'Resurface', body: 'Five saves come back in your weekly digest. Read. Act. Move on.' },
+  { n: '01', icon: Bookmark, title: 'Save', body: 'Bookmark normally on X or YouTube. The extension sees it.' },
+  { n: '02', icon: Zap, title: 'Capture', body: 'A quiet 8-second prompt. Pick a topic, set a reminder, or skip.' },
+  { n: '03', icon: LayoutDashboard, title: 'Organise', body: 'Everything lands in your dashboard - tagged and filterable.' },
+  { n: '04', icon: RefreshCcw, title: 'Resurface', body: 'Five saves come back in your weekly digest. Read. Act. Move on.' },
 ] as const;
 
 export function LoopSection() {
@@ -18,9 +19,6 @@ export function LoopSection() {
   const ref = useRef<HTMLDivElement | null>(null);
   const isInView = useInView(ref, { once: true, amount: 0.2 });
 
-  // Badge centres in the 4-col grid (with equal columns and gaps): roughly
-  // 12.5% / 37.5% / 62.5% / 87.5%. We render the SVG into a 1000-unit viewBox
-  // so coordinates are easy to read.
   const VB_W = 1000;
   const VB_H = 40;
   const centres = [125, 375, 625, 875];
@@ -37,7 +35,6 @@ export function LoopSection() {
         scrollMarginTop: 80,
       }}
     >
-      {/* Heading with hairline rule to the right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 14 }}>
         <h2
           style={{
@@ -65,7 +62,6 @@ export function LoopSection() {
       </p>
 
       <div ref={ref} style={{ position: 'relative' }}>
-        {/* SVG connector */}
         <svg
           viewBox={`0 0 ${VB_W} ${VB_H}`}
           preserveAspectRatio="none"
@@ -74,7 +70,7 @@ export function LoopSection() {
             position: 'absolute',
             left: 0,
             right: 0,
-            top: 26, // aligns with badge centre
+            top: 26,
             width: '100%',
             height: 12,
             zIndex: 0,
@@ -107,7 +103,6 @@ export function LoopSection() {
           })}
         </svg>
 
-        {/* Cards */}
         <div
           style={{
             display: 'grid',
@@ -156,17 +151,18 @@ export function LoopSection() {
               >
                 {s.n}
               </div>
-              <span
+              <s.icon
+                aria-hidden
                 className="rs-step-icon"
                 style={{
-                  fontSize: 22,
+                  width: 18,
+                  height: 18,
                   display: 'block',
-                  marginBottom: 10,
+                  marginBottom: 12,
+                  color: 'var(--rs-teal-400)',
                   transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1)',
                 }}
-              >
-                {s.icon}
-              </span>
+              />
               <div
                 style={{
                   font: '500 14px/1.3 var(--font-geist-sans)',

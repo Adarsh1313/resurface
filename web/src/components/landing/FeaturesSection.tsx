@@ -1,13 +1,14 @@
 'use client';
 
 import { useRef } from 'react';
+import { Bell, Globe, LayoutDashboard, Mail } from 'lucide-react';
 import { motion, useInView } from 'framer-motion';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
 const REVEAL_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 type Feature = {
-  icon: string;
+  icon: React.ComponentType<{ style?: React.CSSProperties; className?: string }>;
   cat: string;
   title: string;
   body: string;
@@ -16,28 +17,28 @@ type Feature = {
 
 const FEATURES: Feature[] = [
   {
-    icon: '🌐',
+    icon: Globe,
     cat: 'Capture Layer',
     title: 'Chrome Extension',
     body: 'Detects your saves on X and YouTube silently. An 8-second prompt, bottom-right. Never interrupts. Never misses.',
   },
   {
-    icon: '📋',
+    icon: LayoutDashboard,
     cat: 'Organisation Layer',
     title: 'Web Dashboard',
-    body: 'Every save in one place — topic-tagged, platform-filtered, sortable by status. Snoozed, reviewed, pending: all visible at once.',
+    body: 'Every save in one place - topic-tagged, platform-filtered, sortable by status. Snoozed, reviewed, pending: all visible at once.',
   },
   {
-    icon: '📧',
+    icon: Mail,
     cat: 'Action Layer',
     title: 'Weekly Digest Email',
-    body: "Five curated saves land in your inbox every Monday. Not a newsletter — your stuff, resurfaced. Three actions per item.",
+    body: 'Five curated saves land in your inbox every Monday. Not a newsletter - your stuff, resurfaced. Three actions per item.',
   },
   {
-    icon: '🔔',
+    icon: Bell,
     cat: 'Reminder Layer',
     title: 'Smart Reminders',
-    body: 'Set a date when you bookmark. A reminder email fires at the right moment. Bridge the intention–action gap.',
+    body: 'Set a date when you bookmark. A reminder email fires at the right moment. Bridge the intention-action gap.',
     amber: true,
   },
 ];
@@ -56,7 +57,6 @@ export function FeaturesSection() {
         padding: '96px 48px',
       }}
     >
-      {/* Faint central radial glow */}
       <div
         aria-hidden
         style={{
@@ -69,7 +69,6 @@ export function FeaturesSection() {
       />
 
       <div style={{ position: 'relative' }}>
-        {/* Heading with hairline rule */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 14 }}>
           <h2
             style={{
@@ -128,18 +127,16 @@ export function FeaturesSection() {
                   'transform 200ms cubic-bezier(0.34,1.56,0.64,1), border-color 200ms cubic-bezier(0.2,0,0,1), box-shadow 200ms ease',
               }}
             >
-              <span
+              <f.icon
+                aria-hidden
                 style={{
-                  fontSize: 22,
+                  width: 18,
+                  height: 18,
                   display: 'block',
                   marginBottom: 14,
-                  // Force amber-feel for the reminder icon — emoji is rendered as
-                  // colour glyph, so a sepia/hue filter brings it close.
-                  filter: f.amber ? 'sepia(1) saturate(3) hue-rotate(0deg) brightness(1.05)' : undefined,
+                  color: f.amber ? 'var(--rs-amber-400)' : 'var(--rs-teal-400)',
                 }}
-              >
-                {f.icon}
-              </span>
+              />
               <div
                 style={{
                   font: '500 10px/1 var(--font-geist-sans)',
