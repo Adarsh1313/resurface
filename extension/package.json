@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tsc && cp src/prompt.css dist/prompt.css",
+    "build": "node scripts/build.mjs",
+    "build:local": "node scripts/build.mjs --local",
     "watch": "tsc --watch"
   },
   "devDependencies": {

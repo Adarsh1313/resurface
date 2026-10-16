@@ -114,48 +114,63 @@ resurface/
 - Node.js 20+
 - npm 10+
 
+No Postgres install or Docker needed — `npm run db:local` runs a real Postgres from the `embedded-postgres` npm package.
+
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/resurface.git
+git clone https://github.com/Adarsh1313/resurface.git
 cd resurface
 ```
 
-### 2. Start the backend
+### 2. Start the database (terminal 1)
 
 ```bash
 cd backend
-cp .env.example .env       # fill in JWT_SECRET at minimum
 npm install
-npx prisma migrate dev     # creates dev.db and runs migrations
-npx prisma db seed         # seeds demo user + bookmarks
-npm run dev                # starts on http://localhost:3001
+cp .env.example .env       # defaults point at the local DB; set JWT_SECRET
+npm run db:local           # Postgres on localhost:5433, data in backend/.pgdata — leave running
 ```
 
-### 3. Start the frontend
+### 3. Migrate, seed, and start the backend (terminal 2)
+
+```bash
+cd backend
+npx prisma migrate deploy  # applies migrations (first run only, or after pulling new ones)
+npx prisma db seed         # seeds demo user + 13 bookmarks
+npm run dev                # API on http://localhost:4000 (health: /ready)
+```
+
+With no `RESEND_API_KEY` or `SMTP_*` set, emails (digest, reminders, waitlist) are logged to this terminal.
+
+### 4. Start the frontend (terminal 3)
 
 ```bash
 cd web
-cp .env.example .env.local  # set NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/v1
 npm install
-npm run dev                  # starts on http://localhost:3000
+echo NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/v1 > .env.local
+npm run dev                # http://localhost:3000
 ```
 
-### 4. Load the extension
+### 5. Build and load the extension
 
 ```bash
 cd extension
 npm install
-npm run build              # compiles TS → dist/
+npm run build:local        # dist/ pointed at localhost:4000 / localhost:3000
 ```
 
-Then in Chrome: **Settings → Extensions → Load unpacked** → select the `extension/` folder.
+Then in Chrome: `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select the `extension/` folder. Pair it by opening the popup → it links to `http://localhost:3000/extension`, where you copy your token and paste it back into the popup.
+
+`npm run build` (no `:local`) builds against the production API and web app.
 
 ### Demo credentials
 
 After seeding, log in at `http://localhost:3000/login` with:
 - Email: `demo@resurface.app`
-- Password: `demo1234`
+- Password: `password123`
+
+The demo account is in `ADMIN_EMAILS` in `.env.example`, so `/dashboard/admin` works too.
 
 ---
 
