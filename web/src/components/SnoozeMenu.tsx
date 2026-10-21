@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { Clock } from 'lucide-react';
-import { useSnoozeUntil } from '@/lib/hooks';
+import { useSnoozeUntil, useMenu } from '@/lib/hooks';
+import { CustomDateForm, MenuItem, MenuSeparator, MenuSurface, triggerClass } from './MenuPrimitives';
 
 function addDays(days: number) {
   const d = new Date();
@@ -16,77 +17,93 @@ function toLocalInput(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function SnoozeMenu({ bookmarkId }: { bookmarkId: string }) {
-  const [open, setOpen] = useState(false);
-  const [customOpen, setCustomOpen] = useState(false);
-  const [custom, setCustom] = useState(toLocalInput(addDays(7)));
-  const ref = useRef<HTMLDivElement>(null);
-  const snooze = useSnoozeUntil();
+const PRESETS = [
+  { days: 1, label: '1 day' },
+  { days: 3, label: '3 days' },
+  { days: 7, label: '1 week' },
+  { days: 30, label: '1 month' },
+];
 
+export function SnoozeMenu({ bookmarkId }: { bookmarkId: string }) {
+  const { open, setOpen, close, focusFirst, rootRef, triggerRef, menuRef, onMenuKeyDown } = useMenu();
+  const [customOpen, setCustomOpen] = useState(false);
+  const [custom, setCustom] = useState(() => toLocalInput(addDays(7)));
+  const snooze = useSnoozeUntil();
+  const menuId = useId();
+
+  // Move focus into the list whenever it is shown (on open, and when returning from the date form).
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setCustomOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, []);
+    if (open && !customOpen) focusFirst();
+  }, [open, customOpen, focusFirst]);
+
+  const toggle = () => {
+    setCustomOpen(false);
+    setOpen(!open);
+  };
 
   const pick = (days: number) => {
     snooze.mutate({ id: bookmarkId, until: addDays(days) });
-    setOpen(false);
+    close();
   };
 
   const pickCustom = () => {
     const d = new Date(custom);
     if (isNaN(d.getTime())) return;
     snooze.mutate({ id: bookmarkId, until: d });
-    setOpen(false);
-    setCustomOpen(false);
+    close();
   };
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <div ref={rootRef} className="relative inline-block">
       <button
+        ref={triggerRef}
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
-          setOpen(!open);
+          toggle();
         }}
-        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' && !open) {
+            e.preventDefault();
+            setCustomOpen(false);
+            setOpen(true);
+          }
+        }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        aria-label="Snooze"
         title="Snooze"
+        className={triggerClass}
+        style={{ color: open ? 'var(--rs-teal-300)' : 'var(--rs-text-tertiary)', border: 'none' }}
       >
-        <Clock className="w-4 h-4" />
+        <Clock className="w-4 h-4" aria-hidden />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-40">
+        <MenuSurface ref={menuRef} id={menuId} label="Snooze until" onKeyDown={onMenuKeyDown}>
           {!customOpen ? (
             <>
-              <button onClick={() => pick(1)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">1 day</button>
-              <button onClick={() => pick(3)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">3 days</button>
-              <button onClick={() => pick(7)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">1 week</button>
-              <button onClick={() => pick(30)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">1 month</button>
-              <div className="border-t border-gray-100 my-1" />
-              <button onClick={() => setCustomOpen(true)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-600">
+              {PRESETS.map((p) => (
+                <MenuItem key={p.days} onSelect={() => pick(p.days)}>
+                  {p.label}
+                </MenuItem>
+              ))}
+              <MenuSeparator />
+              <MenuItem tone="muted" onSelect={() => setCustomOpen(true)}>
                 Custom date…
-              </button>
+              </MenuItem>
             </>
           ) : (
-            <div className="p-3 space-y-2">
-              <input
-                type="datetime-local"
-                value={custom}
-                onChange={(e) => setCustom(e.target.value)}
-                className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
-              />
-              <div className="flex gap-1">
-                <button onClick={() => setCustomOpen(false)} className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50">Back</button>
-                <button onClick={pickCustom} className="flex-1 px-2 py-1 text-xs bg-gray-900 text-white rounded hover:bg-gray-800">Snooze</button>
-              </div>
-            </div>
+            <CustomDateForm
+              label="Snooze until"
+              value={custom}
+              onChange={setCustom}
+              onBack={() => setCustomOpen(false)}
+              onConfirm={pickCustom}
+              confirmLabel="Snooze"
+            />
           )}
-        </div>
+        </MenuSurface>
       )}
     </div>
   );
