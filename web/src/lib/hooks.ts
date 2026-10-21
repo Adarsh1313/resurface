@@ -1,8 +1,9 @@
 'use client';
 
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
-import type { Bookmark } from './types';
+import type { Bookmark, DigestSettings, DigestSettingsUpdate, NotificationPreferences } from './types';
 
 export function useBookmarks(params?: Record<string, string>) {
   return useQuery({
@@ -152,6 +153,62 @@ export function useDeleteTopic() {
   });
 }
 
+export function useDigestSettings() {
+  return useQuery({
+    queryKey: ['digest', 'settings'],
+    queryFn: async () => (await api.digest.getSettings()).settings,
+    retry: false,
+  });
+}
+
+export function useUpdateDigestSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: DigestSettingsUpdate) => (await api.digest.updateSettings(data)).settings,
+    onSuccess: (settings: DigestSettings) => {
+      queryClient.setQueryData(['digest', 'settings'], settings);
+    },
+  });
+}
+
+const PREFERENCES_KEY = ['preferences'] as const;
+
+export function usePreferences() {
+  return useQuery({
+    queryKey: PREFERENCES_KEY,
+    queryFn: async () => (await api.preferences.get()).preferences,
+    retry: false,
+  });
+}
+
+/** Optimistically patches notification preferences; reverts on error. */
+export function useUpdatePreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<NotificationPreferences>) => (await api.preferences.update(data)).preferences,
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: PREFERENCES_KEY });
+      const previous = queryClient.getQueryData<NotificationPreferences>(PREFERENCES_KEY);
+      if (previous) {
+        queryClient.setQueryData<NotificationPreferences>(PREFERENCES_KEY, { ...previous, ...data });
+      }
+      return { previous };
+    },
+    onError: (_err, _data, context) => {
+      if (context?.previous) queryClient.setQueryData(PREFERENCES_KEY, context.previous);
+    },
+    onSuccess: (prefs) => {
+      queryClient.setQueryData(PREFERENCES_KEY, prefs);
+    },
+  });
+}
+
+export function useExtensionToken() {
+  return useMutation({
+    mutationFn: () => api.auth.extensionToken(),
+  });
+}
+
 export function normalizeBookmark(b: Bookmark) {
   return {
     ...b,
@@ -168,4 +225,98 @@ export function relativeTime(dateStr: string) {
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays}d ago`;
   return `${Math.floor(diffDays / 7)}w ago`;
+}
+
+/** The browser's IANA timezone, falling back to UTC. */
+export function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+/** All IANA timezones the runtime knows about, always including UTC and `ensure`. */
+export function supportedTimezones(ensure?: string): string[] {
+  let zones: string[] = [];
+  try {
+    const intl = Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] };
+    zones = intl.supportedValuesOf ? intl.supportedValuesOf('timeZone') : [];
+  } catch {
+    zones = [];
+  }
+  const set = new Set(zones);
+  set.add('UTC');
+  if (ensure) set.add(ensure);
+  return Array.from(set).sort();
+}
+
+/**
+ * Shared behaviour for small popover menus (snooze / reminder):
+ * click-outside closes, Escape closes and returns focus to the trigger,
+ * arrow keys / Home / End move between [role="menuitem"] elements.
+ */
+export function useMenu() {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const close = useCallback((restoreFocus = true) => {
+    setOpen(false);
+    if (restoreFocus) triggerRef.current?.focus();
+  }, []);
+
+  const items = useCallback(
+    () => Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? []),
+    []
+  );
+
+  const focusFirst = useCallback(() => {
+    items()[0]?.focus();
+  }, [items]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open, close]);
+
+  const onMenuKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const list = items();
+      const idx = list.indexOf(document.activeElement as HTMLElement);
+      if (idx < 0 && e.key === 'Tab') return; // e.g. inside the custom date form
+      let next = -1;
+      if (e.key === 'ArrowDown') next = idx < 0 ? 0 : (idx + 1) % list.length;
+      else if (e.key === 'ArrowUp') next = idx < 0 ? list.length - 1 : (idx - 1 + list.length) % list.length;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = list.length - 1;
+      else if (e.key === 'Tab') {
+        // Tabbing out of a menu closes it without stealing focus back.
+        setOpen(false);
+        return;
+      }
+      if (next >= 0 && list[next]) {
+        e.preventDefault();
+        list[next].focus();
+      }
+    },
+    [items]
+  );
+
+  return { open, setOpen, close, rootRef, triggerRef, menuRef, focusFirst, onMenuKeyDown };
 }

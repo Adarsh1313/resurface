@@ -72,3 +72,31 @@ export interface AdminWaitlistResponse {
     users: number;
   };
 }
+
+export type DigestFrequency = 'daily' | 'weekly';
+
+export interface DigestSettings {
+  frequency: DigestFrequency;
+  /** 0 = Sunday … 6 = Saturday */
+  days_of_week: number[];
+  /** 24h local time, "HH:MM" */
+  send_time: string;
+  /** IANA timezone, e.g. "Europe/Berlin" */
+  timezone: string;
+  is_active: boolean;
+  last_sent_at: string | null;
+}
+
+export type DigestSettingsUpdate = Partial<Omit<DigestSettings, 'last_sent_at'>>;
+
+export interface NotificationPreferences {
+  digest_email: boolean;
+  reminder_email: boolean;
+  browser_notifications: boolean;
+  product_updates: boolean;
+}
+
+export interface ExtensionTokenResponse {
+  token: string;
+  expires_at: string;
+}
