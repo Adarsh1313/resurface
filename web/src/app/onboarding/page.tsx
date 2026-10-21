@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Check, Mail, Heart, Bookmark, Puzzle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Mail, Heart, Bookmark, Puzzle, Loader2 } from 'lucide-react';
+import { Logo } from '@/components/Logo';
+import { useUpdateDigestSettings, detectTimezone } from '@/lib/hooks';
+import type { DigestFrequency } from '@/lib/types';
 
 const Chrome = Puzzle;
-import { Logo } from '@/components/Logo';
 
 type StepDef = {
   eyebrow: string;
@@ -34,7 +36,7 @@ function InstallVisual() {
               Resurface
             </div>
             <div style={{ font: '400 11px/1.3 var(--font-geist-sans)', color: 'var(--rs-text-tertiary)' }}>
-              Chrome Web Store
+              Developer build · load unpacked
             </div>
           </div>
         </div>
@@ -45,7 +47,7 @@ function InstallVisual() {
             marginBottom: 14,
           }}
         >
-          Reads only the page URL and title when you save. Stores nothing else locally.
+          Only sends the URL, title, author and thumbnail of things you save. Nothing else from your browsing.
         </div>
         <div
           style={{
@@ -161,92 +163,148 @@ function SaveVisual() {
   );
 }
 
-function DigestVisual() {
+// Monday-first display; values follow the API (0 = Sunday … 6 = Saturday).
+const DAY_CHIPS = [
+  { value: 1, short: 'M', long: 'Monday' },
+  { value: 2, short: 'T', long: 'Tuesday' },
+  { value: 3, short: 'W', long: 'Wednesday' },
+  { value: 4, short: 'T', long: 'Thursday' },
+  { value: 5, short: 'F', long: 'Friday' },
+  { value: 6, short: 'S', long: 'Saturday' },
+  { value: 0, short: 'S', long: 'Sunday' },
+];
+
+const TIME_PRESETS = [
+  { value: '08:00', label: '8:00am' },
+  { value: '12:00', label: '12:00pm' },
+  { value: '18:00', label: '6:00pm' },
+  { value: '21:00', label: '9:00pm' },
+];
+
+type DigestChoice = {
+  frequency: DigestFrequency;
+  days: number[];
+  time: string;
+  timezone: string;
+};
+
+const fieldLabel: React.CSSProperties = {
+  font: '500 11px/1 var(--font-geist-sans)',
+  color: 'var(--rs-text-tertiary)',
+  marginBottom: 8,
+};
+
+function DigestPicker({ value, onChange }: { value: DigestChoice; onChange: (v: DigestChoice) => void }) {
+  const set = (patch: Partial<DigestChoice>) => onChange({ ...value, ...patch });
+  const toggleDay = (d: number) =>
+    set({ days: value.days.includes(d) ? value.days.filter((x) => x !== d) : [...value.days, d] });
+
   return (
-    <div style={{ width: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <Mail style={{ width: 18, height: 18, color: 'var(--rs-teal-400)' }} />
-        <div style={{ font: '500 13px/1 var(--font-geist-sans)', color: 'var(--rs-text-primary)' }}>
-          Weekly digest
-        </div>
-        <div
-          style={{
-            marginLeft: 'auto',
-            font: '400 11px/1 var(--font-geist-sans)',
-            color: 'var(--rs-text-tertiary)',
-          }}
-        >
-          Mon · 8:00am
-        </div>
+        <div style={{ font: '500 13px/1 var(--font-geist-sans)', color: 'var(--rs-text-primary)' }}>Your digest</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 16 }}>
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-          <div
-            key={i}
-            style={{
-              height: 32,
-              background: i === 0 ? 'rgba(45,212,191,0.12)' : 'var(--rs-bg-elevated)',
-              borderLeft: i === 0 ? '2px solid var(--rs-teal-400)' : '0.5px solid transparent',
-              border: i === 0 ? undefined : '0.5px solid var(--rs-border-subtle)',
-              borderRadius: i === 0 ? '0 6px 6px 0' : 6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              font: '500 11px/1 var(--font-geist-sans)',
-              color: i === 0 ? 'var(--rs-teal-300)' : 'var(--rs-text-tertiary)',
-            }}
-          >
-            {d}
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {['8:00am', '12:00pm', '6:00pm', '9:00pm'].map((t, i) => (
-          <div
-            key={t}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 10px',
-              background: i === 0 ? 'rgba(45,212,191,0.07)' : 'transparent',
-              borderLeft: i === 0 ? '2px solid var(--rs-teal-400)' : '2px solid transparent',
-              borderRadius: i === 0 ? '0 6px 6px 0' : 6,
-            }}
-          >
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: '50%',
-                border: i === 0 ? '3px solid var(--rs-teal-400)' : '1px solid var(--rs-border-strong)',
-                background: i === 0 ? 'var(--rs-bg-base)' : 'transparent',
-              }}
-            />
-            <span
-              style={{
-                font: '400 12px/1 var(--font-geist-sans)',
-                color: i === 0 ? 'var(--rs-text-primary)' : 'var(--rs-text-secondary)',
-              }}
-            >
-              {t}
-            </span>
-            {i === 0 && (
-              <span
-                style={{
-                  marginLeft: 'auto',
-                  font: '400 10px/1 var(--font-geist-sans)',
-                  color: 'var(--rs-text-tertiary)',
-                }}
+
+      <div>
+        <div style={fieldLabel}>How often</div>
+        <div role="radiogroup" aria-label="Digest frequency" style={{ display: 'flex', gap: 6 }}>
+          {(['daily', 'weekly'] as DigestFrequency[]).map((f) => {
+            const on = value.frequency === f;
+            return (
+              <button
+                key={f}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => set({ frequency: f })}
+                className="rs-focus-ring"
+                style={choiceStyle(on, { flex: 1 })}
               >
-                in your timezone
-              </span>
-            )}
+                {f === 'daily' ? 'Daily' : 'Weekly'}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {value.frequency === 'weekly' && (
+        <div>
+          <div style={fieldLabel}>On</div>
+          <div role="group" aria-label="Digest days" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+            {DAY_CHIPS.map((d) => {
+              const on = value.days.includes(d.value);
+              return (
+                <button
+                  key={d.value}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={d.long}
+                  title={d.long}
+                  onClick={() => toggleDay(d.value)}
+                  className="rs-focus-ring"
+                  style={choiceStyle(on, { height: 32, padding: 0 })}
+                >
+                  {d.short}
+                </button>
+              );
+            })}
           </div>
-        ))}
+        </div>
+      )}
+
+      <div>
+        <div style={fieldLabel}>At</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          {TIME_PRESETS.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              aria-pressed={value.time === t.value}
+              onClick={() => set({ time: t.value })}
+              className="rs-focus-ring"
+              style={choiceStyle(value.time === t.value)}
+            >
+              {t.label}
+            </button>
+          ))}
+          <input
+            type="time"
+            aria-label="Custom send time"
+            value={value.time}
+            onChange={(e) => e.target.value && set({ time: e.target.value })}
+            className="rs-focus-ring"
+            style={{
+              padding: '6px 8px',
+              background: 'var(--rs-bg-elevated)',
+              border: '0.5px solid var(--rs-border-subtle)',
+              borderRadius: 6,
+              font: '400 12px/1 var(--font-geist-sans)',
+              color: 'var(--rs-text-primary)',
+              colorScheme: 'dark',
+            }}
+          />
+        </div>
+        <div style={{ marginTop: 10, font: '400 11px/1.4 var(--font-geist-sans)', color: 'var(--rs-text-tertiary)' }}>
+          In your timezone: {value.timezone.replace(/_/g, ' ')}
+        </div>
       </div>
     </div>
   );
+}
+
+function choiceStyle(on: boolean, extra: React.CSSProperties = {}): React.CSSProperties {
+  return {
+    padding: '8px 12px',
+    background: on ? 'rgba(45,212,191,0.10)' : 'var(--rs-bg-elevated)',
+    border: '0.5px solid var(--rs-border-subtle)',
+    borderLeft: on ? '2px solid var(--rs-teal-400)' : '0.5px solid var(--rs-border-subtle)',
+    borderRadius: on ? '0 6px 6px 0' : 6,
+    font: '500 12px/1 var(--font-geist-sans)',
+    color: on ? 'var(--rs-teal-300)' : 'var(--rs-text-secondary)',
+    cursor: 'pointer',
+    ...extra,
+  };
 }
 
 const btnBase: React.CSSProperties = {
@@ -280,9 +338,50 @@ const ghostBtn: React.CSSProperties = {
   color: 'var(--rs-text-secondary)',
 };
 
+const ONBOARDING_COMPLETE_KEY = 'resurface:onboarding-complete';
+
+function markOnboardingComplete() {
+  try {
+    localStorage.setItem(ONBOARDING_COMPLETE_KEY, new Date().toISOString());
+  } catch {
+    // Storage can be unavailable (private mode); finishing onboarding shouldn't depend on it.
+  }
+}
+
+const DEFAULT_CHOICE: Omit<DigestChoice, 'timezone'> = { frequency: 'weekly', days: [1], time: '08:00' };
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [choice, setChoice] = useState<DigestChoice>(() => ({ ...DEFAULT_CHOICE, timezone: detectTimezone() }));
+  const [saveError, setSaveError] = useState('');
+  const updateDigest = useUpdateDigestSettings();
+
+  const finish = () => {
+    markOnboardingComplete();
+    router.push('/dashboard');
+  };
+
+  const saveAndFinish = (c: DigestChoice) => {
+    if (c.frequency === 'weekly' && c.days.length === 0) {
+      setSaveError('Pick at least one day, or switch to daily.');
+      return;
+    }
+    setSaveError('');
+    updateDigest.mutate(
+      {
+        frequency: c.frequency,
+        days_of_week: c.frequency === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : [...c.days].sort((a, b) => a - b),
+        send_time: c.time,
+        timezone: c.timezone,
+        is_active: true,
+      },
+      {
+        onSuccess: finish,
+        onError: (e) => setSaveError((e as Error).message || 'Could not save your digest settings.'),
+      }
+    );
+  };
 
   const steps: StepDef[] = [
     {
@@ -290,9 +389,14 @@ export default function OnboardingPage() {
       title: 'Install the extension.',
       body: 'It runs silently on X and YouTube. It asks for the minimum permissions a Chrome extension can ask for.',
       cta: (
-        <button style={primaryBtn} onClick={() => setStep(1)}>
-          <Chrome style={{ width: 14, height: 14 }} /> Add to Chrome
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link href="/extension" target="_blank" className="rs-focus-ring" style={primaryBtn}>
+            <Chrome style={{ width: 14, height: 14 }} /> Connect extension
+          </Link>
+          <button type="button" className="rs-focus-ring" style={ghostBtn} onClick={() => setStep(1)}>
+            Done, next
+          </button>
+        </div>
       ),
       visual: <InstallVisual />,
     },
@@ -302,7 +406,7 @@ export default function OnboardingPage() {
       body:
         "Save a tweet or a YouTube video like you normally would. We'll take it from there — a small prompt appears in the corner.",
       cta: (
-        <button style={secondaryBtn} onClick={() => setStep(2)}>
+        <button type="button" className="rs-focus-ring" style={secondaryBtn} onClick={() => setStep(2)}>
           I&rsquo;ve saved something
         </button>
       ),
@@ -312,18 +416,54 @@ export default function OnboardingPage() {
       eyebrow: 'Step 3 of 3',
       title: 'Set your digest.',
       body:
-        'Five hand-picked saves, once a week. Monday morning is the default. You can change when, how often, and whether.',
+        'Five hand-picked saves, delivered by email. Monday morning is the default. You can change when, how often, and whether in Settings.',
       cta: (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={ghostBtn} onClick={() => router.push('/dashboard')}>
-            Use defaults
-          </button>
-          <button style={primaryBtn} onClick={() => router.push('/dashboard')}>
-            Finish setup
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              className="rs-focus-ring"
+              style={ghostBtn}
+              disabled={updateDigest.isPending}
+              onClick={() => saveAndFinish({ ...DEFAULT_CHOICE, timezone: choice.timezone })}
+            >
+              Use defaults
+            </button>
+            <button
+              type="button"
+              className="rs-focus-ring"
+              style={{ ...primaryBtn, opacity: updateDigest.isPending ? 0.7 : 1 }}
+              disabled={updateDigest.isPending}
+              onClick={() => saveAndFinish(choice)}
+            >
+              {updateDigest.isPending && <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />}
+              Finish setup
+            </button>
+          </div>
+          {saveError && (
+            <div role="alert" style={{ font: '400 13px/1.5 var(--font-geist-sans)', color: 'var(--rs-red-400)' }}>
+              {saveError}{' '}
+              <button
+                type="button"
+                onClick={finish}
+                className="rs-focus-ring"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  font: 'inherit',
+                  color: 'var(--rs-teal-300)',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                }}
+              >
+                Continue to dashboard anyway
+              </button>
+            </div>
+          )}
         </div>
       ),
-      visual: <DigestVisual />,
+      visual: <DigestPicker value={choice} onChange={setChoice} />,
     },
   ];
 
@@ -367,16 +507,21 @@ export default function OnboardingPage() {
             />
           ))}
         </div>
-        <Link
-          href="/dashboard"
+        <button
+          type="button"
+          onClick={finish}
+          className="rs-focus-ring"
           style={{
             font: '500 12px/1 var(--font-geist-sans)',
             color: 'var(--rs-text-tertiary)',
-            textDecoration: 'none',
+            background: 'none',
+            border: 'none',
+            padding: 4,
+            cursor: 'pointer',
           }}
         >
           Skip setup
-        </Link>
+        </button>
       </div>
 
       <div
