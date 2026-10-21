@@ -14,13 +14,31 @@ interface CaptureData {
   thumbnail_url?: string;
 }
 
+function sendToBackground(message: unknown) {
+  try {
+    chrome.runtime.sendMessage(message, () => {
+      void chrome.runtime.lastError; // ignore (worker restarting, etc.)
+    });
+  } catch {
+    // "Extension context invalidated" after an update/reload — the page needs
+    // a refresh before this content script can talk to the extension again.
+  }
+}
+
 function sendCapture(data: CaptureData) {
   // Fire-and-forget to background: seeds pendingCapture + AI suggestions.
-  chrome.runtime.sendMessage({ type: "CAPTURE_START", data }, () => {
-    // ignore response
-  });
   // Background handles the UI: it seeds pendingCapture and opens the
   // action popup anchored under the extension icon. No in-page overlay.
+  sendToBackground({ type: "CAPTURE_START", data });
+}
+
+/**
+ * The user clicked bookmark/save but we couldn't extract the item. This is
+ * the main way X/YouTube DOM changes show up, so log it to capture health
+ * (shown in the popup) instead of failing silently.
+ */
+function reportCaptureError(platform: "x" | "youtube", message: string) {
+  sendToBackground({ type: "CAPTURE_ERROR", platform, message });
 }
 
 // ─── X/Twitter Detection ───────────────────────────────────────────
@@ -64,7 +82,14 @@ function observeTwitterBookmarks() {
       if (!bookmarkBtn) return;
       setTimeout(() => {
         const data = extractTweetData(bookmarkBtn as HTMLElement);
-        if (data) sendCapture(data);
+        if (!data) {
+          reportCaptureError("x", "Bookmark clicked but the post couldn't be found (X layout may have changed)");
+          return;
+        }
+        if (!data.title && !data.author) {
+          reportCaptureError("x", "Saved the post link, but couldn't read its text/author (X layout may have changed)");
+        }
+        sendCapture(data);
       }, 250);
     },
     true
@@ -125,8 +150,14 @@ function observeYouTubeSaves() {
         ariaLabel.includes("watch later");
       if (!isSaveAction) return;
       setTimeout(() => {
+        // No video id = save clicked outside a watch/shorts page (e.g. a feed
+        // menu) — not something we capture, so not an error.
         const data = extractYouTubeData();
-        if (data) sendCapture(data);
+        if (!data) return;
+        if (!data.title) {
+          reportCaptureError("youtube", "Saved the video link, but couldn't read its title (YouTube layout may have changed)");
+        }
+        sendCapture(data);
       }, 300);
     },
     true

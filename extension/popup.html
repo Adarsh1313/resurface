@@ -256,6 +256,18 @@
       height: 0.5px; background: var(--rs-border-subtle);
       margin: 12px 0;
     }
+    .notice {
+      font-size: 12px; line-height: 1.45; color: var(--rs-text-secondary);
+      background: var(--rs-bg-elevated);
+      border: 0.5px solid var(--rs-border-default);
+      border-radius: 8px; padding: 9px 11px; margin-bottom: 10px;
+    }
+    .notice strong { color: var(--rs-text-primary); font-weight: 500; }
+    .notice.danger { border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.07); }
+    .notice.warn { border-color: rgba(251,191,36,0.30); background: rgba(251,191,36,0.06); }
+    .status-line { margin-bottom: 6px; line-height: 1.4; }
+    .status-line.warn { color: var(--rs-amber-400); }
+    .error-line { font-size: 11px; color: #fca5a5; }
     .logo-mark {
       display: inline-block; width: 12px; height: 16px;
       position: relative;
@@ -269,9 +281,15 @@
     <span class="word">Resurface</span>
   </div>
 
-  <!-- Login -->
+  <!-- Login / Reconnect -->
   <div id="login-section" class="section">
-    <p class="field">Paste your token from the <a id="bridge-link" target="_blank">bridge page</a> to pair the extension.</p>
+    <div id="reconnect-banner" class="notice danger" style="display:none">
+      <strong>Reconnect needed.</strong>
+      Your connection to Resurface expired or was revoked, so new saves can't sync.
+      Open the pairing page, copy a fresh token and paste it below.
+      <span id="reconnect-held" style="display:none"><br />Saves made meanwhile are kept and will sync after you reconnect.</span>
+    </div>
+    <p class="field" id="login-intro">Paste your token from the <a id="bridge-link" target="_blank">bridge page</a> to pair the extension.</p>
     <textarea id="token-input" placeholder="eyJhbGciOi..."></textarea>
     <div id="login-error" class="error" style="display:none"></div>
     <button id="paste-login-btn" class="btn-primary">Save token</button>
@@ -327,10 +345,19 @@
     <p class="field">Signed in as <strong id="user-email"></strong></p>
     <p class="field">Saves today</p>
     <div class="stat" id="saves-today">0</div>
+
+    <div id="queue-notice" class="notice warn" style="display:none">
+      <span id="queue-text"></span> <a id="retry-now">Retry now</a>
+    </div>
+    <div id="expiry-line" class="muted status-line"></div>
+    <div id="health-line" class="muted status-line"></div>
+    <div id="error-line" class="status-line error-line" style="display:none"></div>
+
     <button id="dashboard-btn" class="btn-primary">Open Dashboard</button>
     <button id="logout-btn" class="btn-secondary">Log out</button>
   </div>
 
+  <script src="dist/shared.js"></script>
   <script src="dist/popup.js"></script>
 </body>
 </html>
