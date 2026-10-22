@@ -1,229 +1,152 @@
 # Resurface
 
-> **Your saved content, finally acted on.**
+**Your saves, actually acted on.**
 
-Resurface is a Chrome extension + web dashboard that rescues your X (Twitter) and YouTube bookmarks from being forgotten — organising them, tagging them automatically, and delivering a weekly digest email that prompts you to actually act on what you saved.
+Resurface catches what you bookmark on X and YouTube, organises it, and brings it back to you in a short email digest — so "save for later" stops meaning "never".
 
----
-
-## The Problem
-
-Social platforms are engineered to maximise time-on-site, not knowledge retention. Every "Save for later" is an intention — but platforms provide zero infrastructure to honour it.
-
-**The numbers are stark:**
-
-- **≥ 80% of saved content is never revisited.** [Source: Pocket internal data, 2021] The average Pocket user saves 3× more than they read.
-- **X (Twitter) has 500M+ bookmarks saved per month** with no organisation, no reminders, and no search on mobile — buried behind 3 taps.
-- **YouTube's "Watch Later" queue grows by ~1 billion videos per day** globally. The median Watch Later list is never fully consumed; most users abandon it entirely.
-- **Knowledge workers lose an estimated 2.5 hours/week** re-finding content they know they saw but can't locate. [McKinsey Global Institute, "The social economy", 2012]
-- **The "intention–action gap"** in behavioural economics is well-documented: declaring intent (bookmarking) reduces the perceived urgency to act. Saving something *feels* like doing something. It isn't.
-
-**Existing tools don't solve this:**
-
-| Tool | Gap |
-|------|-----|
-| Pocket / Instapaper | Designed for long-form articles. No native X thread or YouTube support. |
-| Notion Web Clipper | Requires an existing Notion setup and heavy manual organisation. |
-| Readwise | Focused on book/article highlights. No X or YouTube capture. |
-| Native bookmarks | No cross-platform view, no reminders, no resurfacing mechanism. |
-
-**No product today closes the loop between saving on social media and acting on what you saved.**
+![Resurface dashboard](docs/images/dashboard.jpg)
 
 ---
 
-## The Solution
+## Why
+
+Every bookmark is a small promise to come back. Platforms make saving effortless and returning nearly impossible: X bookmarks are a flat, unsearchable list, and YouTube's Watch Later quietly grows forever. Saving *feels* like doing something, so the urgency to act disappears.
+
+Tools like Pocket, Readwise or Notion clippers are built for articles and highlights, not tweets and videos. Resurface closes that loop for the two places most people actually save things.
+
+## How it works
 
 ```
-Doomscroll → Save on X/YouTube → Extension captures silently →
-Dashboard organises automatically → Weekly digest resurfaces it →
-You finally act on it
+Save on X / YouTube ─▶ Extension captures it ─▶ Dashboard organises it ─▶ Digest brings it back ─▶ You act on it
 ```
 
-Resurface has three layers:
+1. **Capture** — a Chrome extension notices when you bookmark a post on X or save a video on YouTube, captures it silently and offers a quick topic or reminder. Failed saves are queued and retried; the popup shows when each platform last captured, so a broken capture is noticed.
+2. **Organise** — a web dashboard with every save in one place, auto-tagged into topics, filterable by platform, status and topic. Review, snooze, remind or trash.
+3. **Resurface** — a daily or weekly email with the five saves most worth your time, on your days, at your time, in your timezone. Each item has one-click **Open**, **Mark reviewed** and **Snooze 1 day** buttons. Reminders arrive by email at the time you picked.
 
-1. **Capture** — A Chrome extension that detects when you bookmark a tweet or save a YouTube video, silently captures it, and shows a lightweight 8-second prompt to add a topic or set a reminder. Zero friction.
+## The dashboard
 
-2. **Organise** — A web dashboard that shows all your saves in one place, auto-tagged by AI into topics (no manual work), filterable by platform, status, and date. See what you've reviewed, what's snoozed, what has reminders.
+The home screen is about your habits, not a list:
 
-3. **Resurface** — A weekly digest email — curated from *your own saves* — that lands in your inbox and pushes you to act. Not another newsletter. Your stuff, resurfaced.
+| Card | What it tells you |
+|---|---|
+| **Rescue rate** | Share of your saves you actually came back to, and the median time from save to review |
+| **Rhythm** | Saved vs reviewed for each day this week |
+| **Backlog debt** | Hours of video plus estimated reading time sitting in your queue |
+| **Digest queue** | This digest's five saves, ticked off as you clear them, and when the next one goes out |
+| **Save clock** | Weekday × time-of-day heatmap of when you hit bookmark |
+| **Platform split** | X vs YouTube, and which one you actually follow through on |
+| **Topic drift** | Your top topics week by week over the last two months |
+| **Graveyard** | Saves untouched for 30+ days, with one click to put reminders on them |
+| **Who you save** | Authors you save most, and how many of their posts you reviewed |
 
----
+Plus a status bar (reviewed / pending / snoozed / trashed), total saves, rescued count and your weekly review streak.
 
-## Current Status
+## Features
 
-| Phase | Status |
-|-------|--------|
-| Phase 1 — Working locally | ✅ Done |
-| Phase 1.5 — Personal dogfooding (7 days) | ⏳ Next — see [docs/go-live.md](./docs/go-live.md) |
-| Phase 2 — Deploy (owner-only, $0) | ✅ Deployed; scheduler + email need the go-live steps |
-| Phase 2.5 — Demand validation | 🔜 |
-| Phase 3 — Chrome Web Store + AI + polish | 🔜 |
+- Chrome MV3 extension for X and YouTube, paired with a long-lived (~6 month) token, offline retry queue and reconnect prompt
+- Rule-based topic suggestions (no AI key needed)
+- Snooze (auto-returns when it ends), reminders, trash with 15-day purge
+- Scheduled digests — daily or weekly — with branded emails and signed one-click actions
+- Notification preferences, data export, account deletion, privacy policy
+- Email/password auth with an optional invite-only mode and an admin page for the waitlist
+- Runs entirely on free tiers
 
----
-
-## Features (v1)
-
-- [x] Chrome MV3 extension — detects X + YouTube saves, offline retry queue, capture-health status
-- [x] Capture prompt — 320px, bottom-right, auto-dismiss 8s, topic + reminder UI
-- [x] Insights dashboard — rescue rate, rhythm, backlog debt, save clock, topic drift, graveyard, author loyalty
-- [x] AI topic suggestion — rule-based tagger (no API key required)
-- [x] Reminders — pick date + time, email fires at due time
-- [x] Snooze — defer a bookmark; it comes back automatically when the snooze ends
-- [x] Scheduled digest — daily or weekly, your days, time and timezone; 5 saves per email
-- [x] One-click email actions — Open, Mark reviewed, Snooze 1 day
-- [x] Notification preferences, data export, account deletion
-- [x] Auth — email/password + JWT; long-lived (180-day) extension token
-- [x] Onboarding flow, privacy policy page
-- [ ] Google OAuth
-- [ ] Chrome Web Store listing — checklist in [docs/chrome-web-store.md](./docs/chrome-web-store.md)
-
----
-
-## Tech Stack
+## Tech stack
 
 | Layer | Tech |
-|-------|------|
-| Frontend | Next.js 16 (App Router), React Query, Tailwind CSS v4, Zustand |
-| Backend | Node.js, Express 5, Prisma ORM, SQLite → Supabase (PostgreSQL) |
-| Extension | Chrome MV3, TypeScript, MutationObserver |
-| Email | Resend |
-| Auth | JWT (email/pass), Google OAuth (Phase 2) |
-| Deployment | Vercel (web), Render (backend), Supabase (DB) |
-| CI/CD | GitHub Actions → Vercel auto-deploy |
+|---|---|
+| Web | Next.js 16 (App Router), React Query, Zustand, Tailwind CSS v4 |
+| API | Node.js, Express 5, Prisma 7, PostgreSQL |
+| Extension | Chrome Manifest V3, TypeScript |
+| Email | Resend (SMTP fallback) |
+| Hosting | Vercel (web), Render (API), Supabase (Postgres), cron-job.org (scheduler) |
+| CI | GitHub Actions — lint, build, unit tests, Vercel deploy |
 
----
+## Run your own for $0
 
-## Repository Structure
+Every service above has a free tier that comfortably covers one person. [docs/go-live.md](docs/go-live.md) walks through it end to end: Render environment, Resend, the cron job, your account and the extension. Supporting guides: [cron-setup.md](docs/cron-setup.md), [resend-email-setup.md](docs/resend-email-setup.md), [chrome-web-store.md](docs/chrome-web-store.md).
 
-```
-resurface/
-├── web/          ← Next.js dashboard (deployed to Vercel)
-├── backend/      ← Express API + Prisma (deployed to Render)
-├── extension/    ← Chrome MV3 extension
-├── docs/         ← Specs and paid-services notes
-├── _design/      ← Design assets and references
-├── ROADMAP.md    ← Living roadmap and decision log
-└── README.md     ← You are here
-```
+## Local development
 
----
-
-## Getting Started (Local Development)
-
-### Prerequisites
-- Node.js 20+
-- npm 10+
-
-No Postgres install or Docker needed — `npm run db:local` runs a real Postgres from the `embedded-postgres` npm package.
-
-### 1. Clone the repo
+Needs Node.js 20+ and npm 10+. No Docker or Postgres install — `npm run db:local` runs a real Postgres from the `embedded-postgres` package.
 
 ```bash
 git clone https://github.com/Adarsh1313/resurface.git
 cd resurface
 ```
 
-### 2. Start the database (terminal 1)
+**1. Database** (terminal 1, leave running)
 
 ```bash
 cd backend
 npm install
-cp .env.example .env       # defaults point at the local DB; set JWT_SECRET
-npm run db:local           # Postgres on localhost:5433, data in backend/.pgdata — leave running
+cp .env.example .env
+npm run db:local            # Postgres on localhost:5433, data in backend/.pgdata
 ```
 
-### 3. Migrate, seed, and start the backend (terminal 2)
+**2. API** (terminal 2)
 
 ```bash
 cd backend
-npx prisma migrate deploy  # applies migrations (first run only, or after pulling new ones)
-npx prisma db seed         # seeds demo user + 13 bookmarks
-npm run dev                # API on http://localhost:4000 (health: /ready)
-npm test                   # backend unit tests (vitest)
+npx prisma migrate deploy
+npx prisma db seed          # demo user with ~10 weeks of history
+npm run dev                 # http://localhost:4000  (health: /ready)
+npm test                    # unit tests
 ```
 
-With no `RESEND_API_KEY` or `SMTP_*` set, emails (digest, reminders, waitlist) are logged to this terminal.
+Without `RESEND_API_KEY`, emails are printed to this terminal. The API also runs the scheduler every minute locally; production uses `/v1/cron/tick`.
 
-### 4. Start the frontend (terminal 3)
+**3. Web** (terminal 3)
 
 ```bash
 cd web
 npm install
 echo NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/v1 > .env.local
-npm run dev                # http://localhost:3000
+npm run dev                 # http://localhost:3000
 ```
 
-### 5. Build and load the extension
+Log in with `demo@resurface.app` / `password123`.
+
+**4. Extension**
 
 ```bash
 cd extension
 npm install
-npm run build:local        # dist/ pointed at localhost:4000 / localhost:3000
+npm run build:local         # points at localhost; `npm run build` targets production
 ```
 
-Then in Chrome: `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select the `extension/` folder. Pair it by opening the popup → it links to `http://localhost:3000/extension`, where you copy your token and paste it back into the popup.
+In `chrome://extensions`, turn on Developer mode, **Load unpacked** → the `extension/` folder. Generate a token in Settings → Extension and paste it into the popup.
 
-`npm run build` (no `:local`) builds against the production API and web app.
+## Repository
 
-### Demo credentials
-
-After seeding, log in at `http://localhost:3000/login` with:
-- Email: `demo@resurface.app`
-- Password: `password123`
-
-The seed includes ~10 weeks of history so the insights dashboard has something to show.
-
-The demo account is in `ADMIN_EMAILS` in `.env.example`, so `/dashboard/admin` works too.
-
----
+```
+resurface/
+├── web/         Next.js app — landing, dashboard, settings
+├── backend/     Express API, Prisma schema + migrations, scheduler, email templates
+├── extension/   Chrome MV3 extension
+├── docs/        Go-live, cron, email and Web Store guides
+├── _design/     Design references and the dashboard mockup
+└── ROADMAP.md   Phases, decisions and changelog
+```
 
 ## Roadmap
 
-See **[ROADMAP.md](./ROADMAP.md)** for the full decision log. Summary:
+Built and running for personal use. Next, depending on whether others want it:
 
-### Phase 2 — Deploy + Demand Validation
-- [ ] Migrate DB from SQLite to Supabase (PostgreSQL)
-- [ ] Deploy backend to Render
-- [ ] Deploy frontend to Vercel with custom domain
-- [ ] Wire `NEXT_PUBLIC_API_BASE_URL` to production API
-- [ ] Waitlist landing page live + functional
-- [ ] Post to X and relevant subreddits
-- [ ] Set up PostHog + Sentry
+- Google sign-in
+- Chrome Web Store listing
+- Verified email domain so digests can go to anyone
+- Full-text search and saved views
+- AI topic tagging and digest summaries
+- Mobile-friendly PWA
 
-### Phase 3 — Polish + Store Listing
-- [ ] Google OAuth
-- [ ] Settings page fully wired
-- [ ] Digest email redesign (branded template)
-- [ ] Verified sending domain (SPF/DKIM)
-- [ ] Chrome Web Store listing (screenshots, promo tiles, privacy policy)
-- [ ] Firefox MV3 variant
-- [ ] Mobile-responsive dashboard + PWA
-
-### Phase 4 — Growth (Conditional on Phase 2.5 signals)
-- [ ] AI topic tagging (OpenAI / local model)
-- [ ] Full-text search (SQLite FTS5 → Postgres full-text)
-- [ ] Saved filter views in sidebar
-- [ ] One-click deep-link actions in reminder emails
-- [ ] Billing layer (Stripe — free tier + Pro at $4/mo)
-
-### Phase 5 — Platform Expansion
-- [ ] Reddit saves support
-- [ ] Substack saves support
-- [ ] Notion integration (export bookmarks as a Notion database)
-- [ ] Mobile app (React Native)
-
----
-
-## Contributing
-
-This is currently a solo project in early development. Contributions are not open yet — watch the repo and check back after Phase 2.
-
----
+Decisions and history are in [ROADMAP.md](ROADMAP.md).
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT — see [LICENSE](LICENSE).
 
 ---
 
-*Built by [Adarsh Bharathwaj](https://github.com/adarshbharathwaj) · April 2026*
+Built by [Adarsh Bharathwaj](https://github.com/Adarsh1313).
