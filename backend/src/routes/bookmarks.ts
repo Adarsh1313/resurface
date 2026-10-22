@@ -2,20 +2,10 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { createBookmarkSchema } from '../lib/bookmark-schemas';
 
 const router = Router();
 router.use(authMiddleware);
-
-const createBookmarkSchema = z.object({
-  url: z.string().url(),
-  platform: z.enum(['x', 'youtube']),
-  title: z.string().optional(),
-  author: z.string().optional(),
-  thumbnail_url: z.string().url().optional(),
-  duration_seconds: z.number().int().optional(),
-  topic_names: z.array(z.string()).optional(),
-  notes: z.string().optional(),
-});
 
 const updateBookmarkSchema = z.object({
   status: z.enum(['pending', 'reviewed', 'snoozed']).optional(),
