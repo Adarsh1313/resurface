@@ -74,6 +74,14 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      # Sensitive Vercel env vars come back from `vercel pull` as "[SENSITIVE]".
+      # The API URL isn't secret: drop it so the build uses web/.env.production.
+      - name: Drop redacted API URL from pulled env
+        run: |
+          for f in .vercel/.env.production.local .env.production.local; do
+            [ -f "$f" ] && sed -i '/^NEXT_PUBLIC_API_BASE_URL=/d' "$f" || true
+          done
+
       - name: Build Project Artifacts
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
