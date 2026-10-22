@@ -20,6 +20,8 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true   # Render auto-generates a secure random value
+      - key: CRON_SECRET
+        generateValue: true   # Bearer token for POST /v1/cron/tick (copy into cron-job.org, see docs/cron-setup.md)
       - key: ALLOWED_ORIGINS
         sync: false           # Set to your Vercel URL in Render dashboard
       - key: ADMIN_EMAILS

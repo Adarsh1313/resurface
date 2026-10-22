@@ -1,122 +1,73 @@
 import prisma from '../lib/prisma';
 import { sendEmail } from '../lib/email';
-import { escapeHtml, escapeHtmlAttribute } from '../lib/html';
+import { buildReminderEmail } from '../lib/email-templates';
+import { actionUrl } from '../lib/action-tokens';
+import { displayName } from '../lib/digest';
+import { resolvePreferences } from '../lib/preferences';
 
-function buildReminderHtml(params: {
-  userName: string;
-  title: string;
-  author: string | null;
-  platform: string;
-  url: string;
-}): string {
-  const { userName, title, author, platform, url } = params;
-  const platformLabel = platform === 'x' ? 'X (Twitter)' : platform === 'youtube' ? 'YouTube' : platform;
-  const safeTitle = title || url;
-
-  // Brand palette mirrors the Resurface Design tokens used in the dashboard.
-  return `
-<!DOCTYPE html>
-<html>
-  <body style="margin:0;padding:0;background:#0f0f0e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif;color:#f0ede8;">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#0f0f0e;padding:32px 16px;">
-      <tr><td align="center">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="520" style="max-width:520px;background:#161614;border:1px solid rgba(255,255,255,0.10);border-radius:12px;overflow:hidden;">
-          <tr><td style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.06);">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr>
-                <td style="font-size:13px;font-weight:500;color:#f0ede8;letter-spacing:-0.01em;">
-                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2dd4bf;margin-right:8px;vertical-align:middle;"></span>
-                  Reminder from Resurface
-                </td>
-                <td align="right" style="font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:#5e5b57;">
-                  Resurface
-                </td>
-              </tr>
-            </table>
-          </td></tr>
-          <tr><td style="padding:24px;">
-            <p style="margin:0 0 8px 0;font-size:14px;color:#9b9690;">Hey ${escapeHtml(userName)},</p>
-            <p style="margin:0 0 20px 0;font-size:14px;color:#9b9690;line-height:1.5;">
-              You asked me to ping you about this — here it is.
-            </p>
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#1e1e1b;border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
-              <tr><td style="padding:16px 18px;">
-                <div style="font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:#5e5b57;margin-bottom:8px;">
-                  ${escapeHtml(platformLabel)}
-                </div>
-                <div style="font-size:15px;font-weight:500;color:#f0ede8;line-height:1.4;margin-bottom:6px;">
-                  ${escapeHtml(safeTitle)}
-                </div>
-                ${author ? `<div style="font-size:12px;color:#9b9690;">by ${escapeHtml(author)}</div>` : ''}
-              </td></tr>
-            </table>
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
-              <tr><td style="border-radius:8px;background:#2dd4bf;">
-                <a href="${escapeHtmlAttribute(url)}" style="display:inline-block;padding:10px 18px;font-size:13px;font-weight:500;color:#042f2e;text-decoration:none;letter-spacing:-0.01em;">
-                  Open the save →
-                </a>
-              </td></tr>
-            </table>
-            <p style="margin:24px 0 0 0;font-size:12px;color:#5e5b57;line-height:1.5;">
-              Done with it? Mark it reviewed in the dashboard and it'll stop nagging you.
-            </p>
-          </td></tr>
-          <tr><td style="padding:14px 24px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:#5e5b57;">
-            You're receiving this because you set a reminder on Resurface.
-          </td></tr>
-        </table>
-      </td></tr>
-    </table>
-  </body>
-</html>`.trim();
+export interface ReminderRunResult {
+  sent: number;
+  skipped: number;
+  errors: number;
 }
 
 /**
- * Find all bookmarks whose reminder is due, email the user, mark sent.
- * Idempotent — only processes reminder_sent=false rows and flips the flag.
+ * Email every bookmark whose reminder is due, then mark it sent.
+ *
+ * Idempotent + overlap-safe: each row is claimed with a conditional update
+ * (reminder_sent false -> true) before sending, and released on failure so the
+ * next tick retries. Reminders for users who turned reminder emails off, or for
+ * bookmarks already reviewed, are marked sent without emailing.
  */
-export async function processDueReminders(): Promise<{ sent: number; errors: number }> {
-  const now = new Date();
-  let sent = 0;
-  let errors = 0;
+export async function processDueReminders(now = new Date()): Promise<ReminderRunResult> {
+  const result: ReminderRunResult = { sent: 0, skipped: 0, errors: 0 };
 
   const due = await prisma.bookmark.findMany({
-    where: {
-      reminder_at: { lte: now, not: null },
-      reminder_sent: false,
-      deleted_at: null,
+    where: { reminder_at: { lte: now, not: null }, reminder_sent: false, deleted_at: null },
+    include: {
+      topics: true,
+      user: { select: { id: true, email: true, name: true, preferences: true } },
     },
-    include: { user: true },
+    orderBy: { reminder_at: 'asc' },
     take: 100,
   });
 
-  for (const b of due as any[]) {
+  for (const b of due) {
+    const claim = await prisma.bookmark.updateMany({
+      where: { id: b.id, reminder_sent: false },
+      data: { reminder_sent: true },
+    });
+    if (claim.count !== 1) continue; // another tick got it
+
+    if (b.status === 'reviewed' || resolvePreferences(b.user.preferences).reminder_email === false) {
+      result.skipped++;
+      continue;
+    }
+
     try {
-      const html = buildReminderHtml({
-        userName: b.user.name || b.user.email.split('@')[0],
-        title: b.title || b.url,
-        author: b.author,
-        platform: b.platform,
-        url: b.url,
+      const base = { bookmarkId: b.id, userId: b.user.id };
+      const email = buildReminderEmail({
+        userName: displayName(b.user),
+        bookmark: b,
+        links: {
+          open: actionUrl({ ...base, action: 'open' }),
+          review: actionUrl({ ...base, action: 'review' }),
+          snooze: actionUrl({ ...base, action: 'snooze1d' }),
+        },
       });
-      await sendEmail({
-        to: b.user.email,
-        subject: `Reminder: ${(b.title || b.url).slice(0, 70)}`,
-        html,
-      });
-      await prisma.bookmark.update({
-        where: { id: b.id },
-        data: { reminder_sent: true },
-      });
-      sent++;
+      await sendEmail({ to: b.user.email, ...email });
+      result.sent++;
     } catch (err) {
-      errors++;
+      result.errors++;
       console.error(`[reminders] failed for bookmark ${b.id}:`, err);
+      await prisma.bookmark
+        .update({ where: { id: b.id }, data: { reminder_sent: false } })
+        .catch(() => {});
     }
   }
 
-  if (sent > 0 || errors > 0) {
-    console.log(`[reminders] processed: sent=${sent} errors=${errors}`);
+  if (result.sent || result.errors) {
+    console.log(`[reminders] sent=${result.sent} skipped=${result.skipped} errors=${result.errors}`);
   }
-  return { sent, errors };
+  return result;
 }
