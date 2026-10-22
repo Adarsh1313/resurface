@@ -206,7 +206,7 @@ router.post('/extension-token', authMiddleware, (req: AuthRequest, res: Response
   }
 });
 
-const updateProfileSchema =z.object({
+const updateProfileSchema = z.object({
   name: z.string().min(1),
 });
 

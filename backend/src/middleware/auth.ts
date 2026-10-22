@@ -26,7 +26,7 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
       return;
     }
     prisma.user
-      .findUnique({ where: { id: payload.userId },select: { id: true, email: true, name: true } })
+      .findUnique({ where: { id: payload.userId }, select: { id: true, email: true, name: true } })
       .then((user) => {
         if (!user) {
           res.status(401).json({ error: 'User not found' });
