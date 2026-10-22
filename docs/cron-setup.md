@@ -24,7 +24,7 @@ primary scheduler.**
 `render.yaml` declares `CRON_SECRET` with `generateValue: true`, so Render creates a random value
 when the blueprint is applied.
 
-1. Open the Render dashboard, then **resurface-api**, then **Environment**.
+1. Open the Render dashboard, then **resurface**, then **Environment**.
 2. Copy the value of `CRON_SECRET`. If it's missing (for example, the service wasn't created from
    the blueprint), add it yourself with a long random string (`openssl rand -hex 32`) and save. Render
    redeploys automatically.

@@ -53,9 +53,9 @@ Resurface has three layers:
 
 | Phase | Status |
 |-------|--------|
-| Phase 1 — Working locally | ✅ In progress |
-| Phase 1.5 — Personal dogfooding (7 days) | ⏳ Upcoming |
-| Phase 2 — Deploy + waitlist + public launch | 🔜 |
+| Phase 1 — Working locally | ✅ Done |
+| Phase 1.5 — Personal dogfooding (7 days) | ⏳ Next — see [docs/go-live.md](./docs/go-live.md) |
+| Phase 2 — Deploy (owner-only, $0) | ✅ Deployed; scheduler + email need the go-live steps |
 | Phase 2.5 — Demand validation | 🔜 |
 | Phase 3 — Chrome Web Store + AI + polish | 🔜 |
 
@@ -63,19 +63,19 @@ Resurface has three layers:
 
 ## Features (v1)
 
-- [x] Chrome MV3 extension — detects X + YouTube save events
+- [x] Chrome MV3 extension — detects X + YouTube saves, offline retry queue, capture-health status
 - [x] Capture prompt — 320px, bottom-right, auto-dismiss 8s, topic + reminder UI
-- [x] Web dashboard — bookmark table, sidebar, topic chips, platform pills
-- [x] AI topic suggestion — rule-based tagger (no API key required for v1)
-- [x] Reminder scheduling — pick date + time, email fires at due time
-- [x] Snooze — defer a bookmark for later
-- [x] Weekly email digest — 5-item curated list
-- [x] Auth — email/password + JWT
+- [x] Insights dashboard — rescue rate, rhythm, backlog debt, save clock, topic drift, graveyard, author loyalty
+- [x] AI topic suggestion — rule-based tagger (no API key required)
+- [x] Reminders — pick date + time, email fires at due time
+- [x] Snooze — defer a bookmark; it comes back automatically when the snooze ends
+- [x] Scheduled digest — daily or weekly, your days, time and timezone; 5 saves per email
+- [x] One-click email actions — Open, Mark reviewed, Snooze 1 day
+- [x] Notification preferences, data export, account deletion
+- [x] Auth — email/password + JWT; long-lived (180-day) extension token
+- [x] Onboarding flow, privacy policy page
 - [ ] Google OAuth
-- [ ] Settings page wired to backend
-- [ ] Extension auth flow (popup login + JWT in chrome.storage)
-- [ ] Onboarding flow completion
-- [ ] Chrome Web Store listing
+- [ ] Chrome Web Store listing — checklist in [docs/chrome-web-store.md](./docs/chrome-web-store.md)
 
 ---
 
@@ -139,6 +139,7 @@ cd backend
 npx prisma migrate deploy  # applies migrations (first run only, or after pulling new ones)
 npx prisma db seed         # seeds demo user + 13 bookmarks
 npm run dev                # API on http://localhost:4000 (health: /ready)
+npm test                   # backend unit tests (vitest)
 ```
 
 With no `RESEND_API_KEY` or `SMTP_*` set, emails (digest, reminders, waitlist) are logged to this terminal.
@@ -169,6 +170,8 @@ Then in Chrome: `chrome://extensions` → enable **Developer mode** → **Load u
 After seeding, log in at `http://localhost:3000/login` with:
 - Email: `demo@resurface.app`
 - Password: `password123`
+
+The seed includes ~10 weeks of history so the insights dashboard has something to show.
 
 The demo account is in `ADMIN_EMAILS` in `.env.example`, so `/dashboard/admin` works too.
 
