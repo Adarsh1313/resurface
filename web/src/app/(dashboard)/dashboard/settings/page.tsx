@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   LogOut,
@@ -14,7 +14,6 @@ import {
   Settings as SettingsIcon,
   Send,
   Eye,
-  Copy,
   Trash2,
   Pencil,
   X,
@@ -22,8 +21,21 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { useMutation } from '@tanstack/react-query';
 import { api, apiFetch } from '@/lib/api';
-import { useTopics, useSendDigest, useRenameTopic, useDeleteTopic } from '@/lib/hooks';
+import {
+  useTopics,
+  useSendDigest,
+  useRenameTopic,
+  useDeleteTopic,
+  useDigestSettings,
+  useUpdateDigestSettings,
+  usePreferences,
+  useUpdatePreferences,
+  detectTimezone,
+  supportedTimezones,
+} from '@/lib/hooks';
+import type { DigestFrequency, DigestSettings, NotificationPreferences } from '@/lib/types';
 import { topicColor } from '@/components/TopicChips';
+import { ExtensionTokenPanel } from '@/components/ExtensionTokenPanel';
 
 type Section = 'profile' | 'digest' | 'topics' | 'extension' | 'notifications' | 'account';
 
@@ -63,20 +75,37 @@ function Row({ label, help, children }: { label: string; help?: string; children
   );
 }
 
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  value,
+  onChange,
+  label,
+  disabled,
+}: {
+  value: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+  disabled?: boolean;
+}) {
   return (
     <button
+      type="button"
+      role="switch"
+      aria-checked={value}
+      aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!value)}
       className="rs-focus-ring"
       style={{
+        opacity: disabled ? 0.5 : 1,
         width: 36,
         height: 20,
         borderRadius: 100,
         background: value ? 'var(--rs-teal-400)' : 'var(--rs-bg-elevated)',
         border: value ? 'none' : '0.5px solid var(--rs-border-default)',
         position: 'relative',
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
         padding: 0,
+        flexShrink: 0,
       }}
     >
       <span
@@ -279,101 +308,233 @@ function ProfileSection() {
   );
 }
 
-function DigestSection() {
-  const [active, setActive] = useState(true);
-  const [freq, setFreq] = useState(1);
-  const [days, setDays] = useState<number[]>([1]); // Mon
-  const [time, setTime] = useState('8:00am');
-  const [savedMsg, setSavedMsg] = useState('');
-  const sendDigest = useSendDigest();
+// ─── Digest ───────────────────────────────────────────────────────
 
-  const saveMutation = useMutation({
-    mutationFn: () =>
-      api.digest.settings({
-        frequency: freq === 1 ? 7 : freq === 2 ? 3 : 1,
-        send_time: timeToHHMM(time),
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+// Displayed Monday-first; values follow the API (0 = Sunday … 6 = Saturday).
+const DAY_CHIPS: { value: number; short: string; long: string }[] = [
+  { value: 1, short: 'M', long: 'Monday' },
+  { value: 2, short: 'T', long: 'Tuesday' },
+  { value: 3, short: 'W', long: 'Wednesday' },
+  { value: 4, short: 'T', long: 'Thursday' },
+  { value: 5, short: 'F', long: 'Friday' },
+  { value: 6, short: 'S', long: 'Saturday' },
+  { value: 0, short: 'S', long: 'Sunday' },
+];
+
+const DEFAULT_DIGEST: DigestSettings = {
+  frequency: 'weekly',
+  days_of_week: [1],
+  send_time: '08:00',
+  timezone: 'UTC',
+  is_active: true,
+  last_sent_at: null,
+};
+
+const inputStyle: React.CSSProperties = {
+  padding: '7px 10px',
+  background: 'var(--rs-bg-elevated)',
+  border: '0.5px solid var(--rs-border-default)',
+  borderRadius: 'var(--rs-radius-md)',
+  font: '400 13px/1.4 var(--font-geist-sans)',
+  color: 'var(--rs-text-primary)',
+  colorScheme: 'dark',
+};
+
+function DigestSection() {
+  const { data, isPending, isError, error, refetch } = useDigestSettings();
+
+  if (isPending) {
+    return (
+      <>
+        <PageHeader title="Digest" body="Your curated briefing. Five hand-picked saves. Short, terminal." />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...mutedText }}>
+          <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> Loading digest settings…
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader title="Digest" body="Your curated briefing. Five hand-picked saves. Short, terminal." />
+      {isError && (
+        <div role="alert" style={errorBanner}>
+          <span>
+            Couldn&apos;t load your digest settings ({(error as Error)?.message || 'unknown error'}). Showing defaults.
+          </span>
+          <button onClick={() => refetch()} style={{ ...secondaryBtn, padding: '5px 10px' }} className="rs-focus-ring">
+            Retry
+          </button>
+        </div>
+      )}
+      {/* Keyed so the form re-initialises when server data arrives. */}
+      <DigestForm key={data ? 'loaded' : 'defaults'} initial={data ?? DEFAULT_DIGEST} />
+    </>
+  );
+}
+
+function DigestForm({ initial }: { initial: DigestSettings }) {
+  const browserTz = useMemo(() => detectTimezone(), []);
+  const timezones = useMemo(() => supportedTimezones(browserTz), [browserTz]);
+  // A stored 'UTC' is the server default — treat it as "not chosen yet" and suggest the browser zone.
+  const tzWasDefaulted = initial.timezone === 'UTC' && browserTz !== 'UTC';
+
+  const [active, setActive] = useState(initial.is_active);
+  const [frequency, setFrequency] = useState<DigestFrequency>(initial.frequency);
+  const [days, setDays] = useState<number[]>(
+    initial.frequency === 'weekly' && initial.days_of_week.length ? initial.days_of_week : [1]
+  );
+  const [time, setTime] = useState(initial.send_time || '08:00');
+  const [timezone, setTimezone] = useState(tzWasDefaulted ? browserTz : initial.timezone);
+  const [status, setStatus] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  const update = useUpdateDigestSettings();
+  const sendDigest = useSendDigest();
+  const preview = useMutation({ mutationFn: () => api.digest.preview() });
+
+  const flash = (kind: 'ok' | 'error', text: string, ms = 2500) => {
+    setStatus({ kind, text });
+    setTimeout(() => setStatus(null), ms);
+  };
+
+  const handleSave = () => {
+    if (frequency === 'weekly' && days.length === 0) {
+      flash('error', 'Pick at least one day.');
+      return;
+    }
+    update.mutate(
+      {
         is_active: active,
-      }),
-    onSuccess: () => {
-      setSavedMsg('Saved');
-      setTimeout(() => setSavedMsg(''), 1500);
-    },
-    onError: (e) => setSavedMsg((e as Error).message),
-  });
+        frequency,
+        days_of_week: frequency === 'daily' ? ALL_DAYS : [...days].sort((a, b) => a - b),
+        send_time: time,
+        timezone,
+      },
+      {
+        onSuccess: () => flash('ok', 'Saved'),
+        onError: (e) => flash('error', (e as Error).message || 'Save failed', 4000),
+      }
+    );
+  };
 
   const handleSendNow = async () => {
     try {
       const r = await sendDigest.mutateAsync();
-      setSavedMsg(`Digest sent — ${r.bookmarks_included} included.`);
+      flash('ok', r.message || `Digest sent — ${r.bookmarks_included} included.`, 3500);
     } catch (e) {
-      setSavedMsg((e as Error).message);
+      flash('error', (e as Error).message || 'Send failed', 4000);
     }
-    setTimeout(() => setSavedMsg(''), 3000);
   };
+
+  const toggleDay = (d: number) =>
+    setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]));
 
   return (
     <>
-      <PageHeader title="Digest" body="Your weekly curated briefing. Five hand-picked saves. Short, terminal." />
-
       <Row label="Active" help="Turn the digest on or off entirely.">
-        <Toggle value={active} onChange={setActive} />
+        <Toggle value={active} onChange={setActive} label="Digest active" />
       </Row>
 
-      <Row label="Frequency" help="Up to three times a week.">
+      <Row label="Frequency" help="Every day, or only on the days you pick.">
         <Segmented
+          label="Digest frequency"
           options={[
-            { value: 1, label: '1× / week' },
-            { value: 2, label: '2× / week' },
-            { value: 3, label: '3× / week' },
+            { value: 'daily' as DigestFrequency, label: 'Daily' },
+            { value: 'weekly' as DigestFrequency, label: 'Weekly' },
           ]}
-          value={freq}
-          onChange={setFreq}
+          value={frequency}
+          onChange={setFrequency}
         />
       </Row>
 
-      <Row label="Days" help="Which days to send.">
-        <div style={{ display: 'flex', gap: 4 }}>
-          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => {
-            const on = days.includes(i);
-            return (
-              <button
-                key={i}
-                onClick={() =>
-                  setDays((cur) => (on ? cur.filter((x) => x !== i) : [...cur, i].slice(0, freq)))
-                }
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: on ? '0 6px 6px 0' : 6,
-                  background: on ? 'rgba(45,212,191,0.07)' : 'var(--rs-bg-elevated)',
-                  border: '0.5px solid var(--rs-border-subtle)',
-                  borderLeft: on ? '2px solid var(--rs-teal-400)' : '0.5px solid var(--rs-border-subtle)',
-                  font: '500 11px/1 var(--font-geist-sans)',
-                  color: on ? 'var(--rs-teal-300)' : 'var(--rs-text-tertiary)',
-                  cursor: 'pointer',
-                }}
-              >
-                {d}
-              </button>
-            );
-          })}
+      {frequency === 'weekly' && (
+        <Row label="Days" help="Which days to send.">
+          <div role="group" aria-label="Digest days" style={{ display: 'flex', gap: 4 }}>
+            {DAY_CHIPS.map((d) => {
+              const on = days.includes(d.value);
+              return (
+                <button
+                  key={d.value}
+                  type="button"
+                  onClick={() => toggleDay(d.value)}
+                  aria-pressed={on}
+                  aria-label={d.long}
+                  title={d.long}
+                  className="rs-focus-ring"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: on ? '0 6px 6px 0' : 6,
+                    background: on ? 'rgba(45,212,191,0.07)' : 'var(--rs-bg-elevated)',
+                    border: '0.5px solid var(--rs-border-subtle)',
+                    borderLeft: on ? '2px solid var(--rs-teal-400)' : '0.5px solid var(--rs-border-subtle)',
+                    font: '500 11px/1 var(--font-geist-sans)',
+                    color: on ? 'var(--rs-teal-300)' : 'var(--rs-text-tertiary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {d.short}
+                </button>
+              );
+            })}
+          </div>
+        </Row>
+      )}
+
+      <Row label="Send time" help="In the timezone below.">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <input
+            type="time"
+            aria-label="Send time"
+            value={time}
+            onChange={(e) => e.target.value && setTime(e.target.value)}
+            className="rs-focus-ring"
+            style={inputStyle}
+          />
+          <span style={mutedText}>{friendlyTime(time)}</span>
         </div>
       </Row>
 
-      <Row label="Time" help="Your local timezone.">
-        <Segmented
-          options={['8:00am', '12:00pm', '6:00pm', '9:00pm'].map((t) => ({ value: t, label: t }))}
-          value={time}
-          onChange={setTime}
-        />
+      <Row
+        label="Timezone"
+        help={tzWasDefaulted && timezone === browserTz ? 'Detected from your browser — save to keep it.' : undefined}
+      >
+        <select
+          aria-label="Timezone"
+          value={timezone}
+          onChange={(e) => setTimezone(e.target.value)}
+          className="rs-focus-ring"
+          style={{ ...inputStyle, maxWidth: 320, width: '100%' }}
+        >
+          {(timezones.includes(timezone) ? timezones : [timezone, ...timezones]).map((tz) => (
+            <option key={tz} value={tz}>
+              {tz.replace(/_/g, ' ')}
+            </option>
+          ))}
+        </select>
       </Row>
 
+      {initial.last_sent_at && (
+        <Row label="Last sent">
+          <div style={{ font: '400 13px/1.4 var(--font-geist-sans)', color: 'var(--rs-text-secondary)' }}>
+            {new Date(initial.last_sent_at).toLocaleString(undefined, {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
+          </div>
+        </Row>
+      )}
+
       <div style={{ display: 'flex', gap: 8, marginTop: 28, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} style={primaryBtn}>
-          {saveMutation.isPending && <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />}
+        <button onClick={handleSave} disabled={update.isPending} style={primaryBtn} className="rs-focus-ring">
+          {update.isPending && <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />}
           Save changes
         </button>
-        <button onClick={handleSendNow} disabled={sendDigest.isPending} style={secondaryBtn}>
+        <button onClick={handleSendNow} disabled={sendDigest.isPending} style={secondaryBtn} className="rs-focus-ring">
           {sendDigest.isPending ? (
             <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
           ) : (
@@ -381,41 +542,107 @@ function DigestSection() {
           )}
           Send digest now
         </button>
-        <button style={secondaryBtn}>
-          <Eye style={{ width: 13, height: 13 }} />
+        <button onClick={() => preview.mutate()} disabled={preview.isPending} style={secondaryBtn} className="rs-focus-ring">
+          {preview.isPending ? (
+            <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
+          ) : (
+            <Eye style={{ width: 13, height: 13 }} />
+          )}
           Preview
         </button>
-        {savedMsg && (
-          <span style={{ font: '400 12px/1 var(--font-geist-sans)', color: 'var(--rs-teal-300)' }}>{savedMsg}</span>
+        {status && (
+          <span
+            role="status"
+            style={{
+              font: '400 12px/1 var(--font-geist-sans)',
+              color: status.kind === 'ok' ? 'var(--rs-teal-300)' : 'var(--rs-red-400)',
+            }}
+          >
+            {status.text}
+          </span>
         )}
       </div>
+
+      {(preview.data || preview.isError) && (
+        <div
+          style={{
+            marginTop: 20,
+            padding: '14px 16px',
+            background: 'var(--rs-bg-elevated)',
+            border: '0.5px solid var(--rs-border-subtle)',
+            borderRadius: 'var(--rs-radius-md)',
+          }}
+        >
+          {preview.isError ? (
+            <div style={{ font: '400 12px/1.5 var(--font-geist-sans)', color: 'var(--rs-red-400)' }}>
+              {(preview.error as Error).message || 'Preview failed'}
+            </div>
+          ) : preview.data && preview.data.bookmarks.length === 0 ? (
+            <div style={mutedText}>Nothing to send yet — your next digest would be empty.</div>
+          ) : (
+            <>
+              <div className="rs-micro" style={{ marginBottom: 8 }}>
+                Next digest
+              </div>
+              <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {preview.data?.bookmarks.map((b) => (
+                  <li key={b.id} style={{ font: '400 13px/1.45 var(--font-geist-sans)', color: 'var(--rs-text-primary)' }}>
+                    {b.title || b.url}
+                    {b.author && <span style={{ color: 'var(--rs-text-tertiary)' }}> · {b.author}</span>}
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 }
 
-function timeToHHMM(t: string): string {
-  // "8:00am" → "08:00", "12:00pm" → "12:00", "9:00pm" → "21:00"
-  const m = t.match(/^(\d+):(\d+)(am|pm)$/i);
-  if (!m) return '09:00';
-  let h = parseInt(m[1], 10);
-  const mm = m[2];
-  const ampm = m[3].toLowerCase();
-  if (ampm === 'pm' && h !== 12) h += 12;
-  if (ampm === 'am' && h === 12) h = 0;
-  return `${String(h).padStart(2, '0')}:${mm}`;
+const mutedText: React.CSSProperties = {
+  font: '400 12px/1.4 var(--font-geist-sans)',
+  color: 'var(--rs-text-tertiary)',
+};
+
+const errorBanner: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  padding: '10px 12px',
+  marginBottom: 12,
+  background: 'rgba(239,68,68,0.08)',
+  border: '0.5px solid rgba(239,68,68,0.30)',
+  borderRadius: 'var(--rs-radius-md)',
+  font: '400 12px/1.45 var(--font-geist-sans)',
+  color: 'var(--rs-red-300)',
+};
+
+function friendlyTime(hhmm: string): string {
+  const m = hhmm.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return hhmm;
+  const h = parseInt(m[1], 10);
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m[2]} ${suffix}`;
 }
 
 function Segmented<T extends string | number>({
   options,
   value,
   onChange,
+  label,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (v: T) => void;
+  label?: string;
 }) {
   return (
     <div
+      role="radiogroup"
+      aria-label={label}
       style={{
         display: 'inline-flex',
         gap: 4,
@@ -430,7 +657,11 @@ function Segmented<T extends string | number>({
         return (
           <button
             key={String(opt.value)}
+            type="button"
+            role="radio"
+            aria-checked={on}
             onClick={() => onChange(opt.value)}
+            className="rs-focus-ring"
             style={{
               padding: '6px 14px',
               background: on ? 'var(--rs-bg-hover)' : 'transparent',
@@ -600,98 +831,97 @@ function TopicsSection() {
 }
 
 function ExtensionSection() {
-  const [copied, setCopied] = useState(false);
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
   return (
     <>
       <PageHeader title="Extension" body="Pair the Chrome extension with this account." />
-      <Row label="Status">
-        <div
+      <Row label="Install" help="Not on the Chrome Web Store yet.">
+        <ol
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            font: '500 13px/1 var(--font-geist-sans)',
-            color: 'var(--rs-green-300)',
+            margin: 0,
+            paddingLeft: 18,
+            font: '400 12px/1.6 var(--font-geist-sans)',
+            color: 'var(--rs-text-secondary)',
           }}
         >
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: 'var(--rs-green-400)',
-              boxShadow: '0 0 8px rgba(74,222,128,0.4)',
-            }}
-          />
-          Token ready · paste into the extension popup
-        </div>
+          <li>
+            Build it: <code style={inlineCode}>cd extension &amp;&amp; npm install &amp;&amp; npm run build</code>
+          </li>
+          <li>
+            Open <code style={inlineCode}>chrome://extensions</code> and turn on Developer mode.
+          </li>
+          <li>
+            Click <strong style={{ color: 'var(--rs-text-primary)', fontWeight: 500 }}>Load unpacked</strong> and pick the{' '}
+            <code style={inlineCode}>extension</code> folder.
+          </li>
+        </ol>
       </Row>
-      <Row label="Token" help="Don't share this — it's a session bearer.">
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-          }}
-        >
-          <code
-            style={{
-              display: 'block',
-              padding: '10px 12px',
-              background: 'var(--rs-bg-elevated)',
-              border: '0.5px solid var(--rs-border-subtle)',
-              borderRadius: 'var(--rs-radius-md)',
-              font: '400 11px/1.5 var(--font-geist-mono), ui-monospace, monospace',
-              color: 'var(--rs-text-secondary)',
-              wordBreak: 'break-all',
-              maxWidth: 480,
-            }}
-          >
-            {token || 'No token'}
-          </code>
-          <button
-            onClick={() => {
-              if (!token) return;
-              navigator.clipboard.writeText(token);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1500);
-            }}
-            style={{ ...secondaryBtn, alignSelf: 'flex-start' }}
-          >
-            {copied ? (
-              <Check style={{ width: 13, height: 13, color: 'var(--rs-teal-400)' }} />
-            ) : (
-              <Copy style={{ width: 13, height: 13 }} />
-            )}
-            {copied ? 'Copied' : 'Copy token'}
-          </button>
-        </div>
+      <Row label="Token" help="Pastes into the extension popup. Valid for about 6 months.">
+        <ExtensionTokenPanel />
       </Row>
     </>
   );
 }
 
+const inlineCode: React.CSSProperties = {
+  font: '400 11px/1.4 var(--font-geist-mono), ui-monospace, monospace',
+  padding: '1px 5px',
+  background: 'var(--rs-bg-elevated)',
+  border: '0.5px solid var(--rs-border-subtle)',
+  borderRadius: 4,
+  color: 'var(--rs-text-primary)',
+};
+
+const NOTIFICATION_ROWS: { key: keyof NotificationPreferences; label: string; help: string }[] = [
+  { key: 'digest_email', label: 'Digest email', help: 'Your scheduled digest of saves.' },
+  { key: 'reminder_email', label: 'Reminder emails', help: 'When a reminder time is reached and your browser is closed.' },
+  { key: 'browser_notifications', label: 'Chrome notifications', help: 'When your browser is open at reminder time.' },
+  { key: 'product_updates', label: 'Product updates', help: 'Occasional. Never more than once a month.' },
+];
+
 function NotificationsSection() {
-  const [digestEmail, setDigestEmail] = useState(true);
-  const [reminderEmail, setReminderEmail] = useState(true);
-  const [chrome, setChrome] = useState(false);
-  const [productUpdates, setProductUpdates] = useState(false);
+  const { data, isPending, isError, error, refetch } = usePreferences();
+  const update = useUpdatePreferences();
+  const [saveError, setSaveError] = useState('');
+
+  const onToggle = (key: keyof NotificationPreferences, value: boolean) => {
+    setSaveError('');
+    update.mutate(
+      { [key]: value },
+      {
+        onError: (e) => {
+          setSaveError((e as Error).message || 'Could not save');
+          setTimeout(() => setSaveError(''), 4000);
+        },
+      }
+    );
+  };
+
   return (
     <>
-      <PageHeader title="Notifications" />
-      <Row label="Digest email" help="Weekly or bi-weekly summary.">
-        <Toggle value={digestEmail} onChange={setDigestEmail} />
-      </Row>
-      <Row label="Reminder emails" help="When a reminder time is reached and your browser is closed.">
-        <Toggle value={reminderEmail} onChange={setReminderEmail} />
-      </Row>
-      <Row label="Chrome notifications" help="When your browser is open at reminder time.">
-        <Toggle value={chrome} onChange={setChrome} />
-      </Row>
-      <Row label="Product updates" help="Occasional. Never more than once a month.">
-        <Toggle value={productUpdates} onChange={setProductUpdates} />
-      </Row>
+      <PageHeader title="Notifications" body="Changes save as you toggle." />
+      {isError && (
+        <div role="alert" style={errorBanner}>
+          <span>Couldn&apos;t load notification preferences ({(error as Error)?.message || 'unknown error'}).</span>
+          <button onClick={() => refetch()} style={{ ...secondaryBtn, padding: '5px 10px' }} className="rs-focus-ring">
+            Retry
+          </button>
+        </div>
+      )}
+      {saveError && (
+        <div role="alert" style={errorBanner}>
+          <span>Couldn&apos;t save: {saveError}. Your change was reverted.</span>
+        </div>
+      )}
+      {NOTIFICATION_ROWS.map((row) => (
+        <Row key={row.key} label={row.label} help={row.help}>
+          <Toggle
+            label={row.label}
+            value={data?.[row.key] ?? false}
+            disabled={isPending || isError}
+            onChange={(v) => onToggle(row.key, v)}
+          />
+        </Row>
+      ))}
     </>
   );
 }
@@ -755,7 +985,7 @@ function AccountSection() {
           <LogOut style={{ width: 13, height: 13 }} /> Log out
         </button>
       </Row>
-      <Row label="Delete account" help="Permanent. Data retained for 12 months for recovery.">
+      <Row label="Delete account" help="Permanent. Removes your account and all saves.">
         <button onClick={handleDelete} disabled={deleteLoading} style={dangerBtn}>
           {deleteLoading ? (
             <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
