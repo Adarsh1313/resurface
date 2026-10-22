@@ -14,6 +14,8 @@ model User {
   password_hash String
   auth_provider String          @default("email")
   timezone      String          @default("UTC")
+  // Notification preferences JSON; keys + defaults live in src/lib/preferences.ts
+  preferences   Json            @default("{}")
   created_at    DateTime        @default(now())
   updated_at    DateTime        @updatedAt
 
@@ -74,9 +76,9 @@ model Topic {
 model DigestSetting {
   id           String   @id @default(uuid())
   user_id      String   @unique
-  frequency    Int      @default(1)
-  days_of_week String   @default("1") // comma-separated: "1" or "1,4"
-  send_time    String   @default("08:00:00")
+  frequency    Int      @default(1) // 1 = weekly, 7 = daily (see src/lib/digest-schedule.ts)
+  days_of_week String   @default("1") // comma-separated 0..6 (0 = Sun): "1" or "1,4"
+  send_time    String   @default("08:00:00") // HH:MM:SS in the user's local time (users.timezone)
   is_active    Boolean  @default(true)
   last_sent_at DateTime?
   created_at   DateTime @default(now())
@@ -126,6 +128,7 @@ model DigestLog {
   opened         Boolean  @default(false)
   opened_at      DateTime?
   items_reviewed Int      @default(0)
+  clicks         Int      @default(0) // "Open" link clicks from this digest email
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
