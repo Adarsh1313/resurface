@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { Bell, BellOff } from 'lucide-react';
-import { useSetReminder } from '@/lib/hooks';
+import { useSetReminder, useMenu } from '@/lib/hooks';
+import { CustomDateForm, MenuItem, MenuSeparator, MenuSurface, triggerClass } from './MenuPrimitives';
 
 function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -16,90 +17,110 @@ function preset(days: number, hour = 9) {
   return d;
 }
 
+const PRESETS = [
+  { days: 1, label: 'Tomorrow 9am' },
+  { days: 3, label: 'In 3 days' },
+  { days: 7, label: 'In 1 week' },
+  { days: 30, label: 'In 1 month' },
+];
+
 export function ReminderMenu({ bookmarkId, hasReminder }: { bookmarkId: string; hasReminder?: boolean }) {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen, close, focusFirst, rootRef, triggerRef, menuRef, onMenuKeyDown } = useMenu();
   const [customOpen, setCustomOpen] = useState(false);
-  const [custom, setCustom] = useState(toLocalInput(preset(1)));
-  const ref = useRef<HTMLDivElement>(null);
+  const [custom, setCustom] = useState(() => toLocalInput(preset(1)));
   const setReminder = useSetReminder();
+  const menuId = useId();
 
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setCustomOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, []);
+    if (open && !customOpen) focusFirst();
+  }, [open, customOpen, focusFirst]);
+
+  const toggle = () => {
+    setCustomOpen(false);
+    setOpen(!open);
+  };
 
   const pick = (days: number) => {
     setReminder.mutate({ id: bookmarkId, at: preset(days) });
-    setOpen(false);
+    close();
   };
 
   const pickCustom = () => {
     const d = new Date(custom);
     if (isNaN(d.getTime())) return;
     setReminder.mutate({ id: bookmarkId, at: d });
-    setOpen(false);
-    setCustomOpen(false);
+    close();
   };
 
   const clear = () => {
     setReminder.mutate({ id: bookmarkId, at: null });
-    setOpen(false);
+    close();
   };
 
+  const label = hasReminder ? 'Reminder set — change reminder' : 'Set reminder';
+
   return (
-    <div ref={ref} className="relative inline-block">
+    <div ref={rootRef} className="relative inline-block">
       <button
+        ref={triggerRef}
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
-          setOpen(!open);
+          toggle();
         }}
-        className={`p-1.5 rounded-lg hover:bg-blue-50 ${hasReminder ? 'text-blue-600' : 'text-gray-400 hover:text-blue-600'}`}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' && !open) {
+            e.preventDefault();
+            setCustomOpen(false);
+            setOpen(true);
+          }
+        }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        aria-label={label}
         title={hasReminder ? 'Reminder set' : 'Set reminder'}
+        className={triggerClass}
+        style={{
+          color: hasReminder ? 'var(--rs-amber-400)' : open ? 'var(--rs-teal-300)' : 'var(--rs-text-tertiary)',
+          border: 'none',
+        }}
       >
-        <Bell className="w-4 h-4" />
+        <Bell className="w-4 h-4" aria-hidden />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-40">
+        <MenuSurface ref={menuRef} id={menuId} label="Remind me" onKeyDown={onMenuKeyDown}>
           {!customOpen ? (
             <>
-              <button onClick={() => pick(1)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">Tomorrow 9am</button>
-              <button onClick={() => pick(3)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">In 3 days</button>
-              <button onClick={() => pick(7)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">In 1 week</button>
-              <button onClick={() => pick(30)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">In 1 month</button>
-              <div className="border-t border-gray-100 my-1" />
-              <button onClick={() => setCustomOpen(true)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-600">
+              {PRESETS.map((p) => (
+                <MenuItem key={p.days} onSelect={() => pick(p.days)}>
+                  {p.label}
+                </MenuItem>
+              ))}
+              <MenuSeparator />
+              <MenuItem tone="muted" onSelect={() => setCustomOpen(true)}>
                 Custom date…
-              </button>
+              </MenuItem>
               {hasReminder && (
                 <>
-                  <div className="border-t border-gray-100 my-1" />
-                  <button onClick={clear} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 text-red-600 flex items-center gap-2">
-                    <BellOff className="w-3.5 h-3.5" /> Clear reminder
-                  </button>
+                  <MenuSeparator />
+                  <MenuItem tone="danger" onSelect={clear}>
+                    <BellOff className="w-3.5 h-3.5" aria-hidden /> Clear reminder
+                  </MenuItem>
                 </>
               )}
             </>
           ) : (
-            <div className="p-3 space-y-2">
-              <input
-                type="datetime-local"
-                value={custom}
-                onChange={(e) => setCustom(e.target.value)}
-                className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
-              />
-              <div className="flex gap-1">
-                <button onClick={() => setCustomOpen(false)} className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50">Back</button>
-                <button onClick={pickCustom} className="flex-1 px-2 py-1 text-xs bg-gray-900 text-white rounded hover:bg-gray-800">Set</button>
-              </div>
-            </div>
+            <CustomDateForm
+              label="Remind me at"
+              value={custom}
+              onChange={setCustom}
+              onBack={() => setCustomOpen(false)}
+              onConfirm={pickCustom}
+              confirmLabel="Set"
+            />
           )}
-        </div>
+        </MenuSurface>
       )}
     </div>
   );

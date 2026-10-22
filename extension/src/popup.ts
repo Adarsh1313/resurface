@@ -1,5 +1,16 @@
-const WEB_BASE_URL = "https://resurface-web-eight.vercel.app";
-const API_BASE_URL = "https://resurface-nclr.onrender.com/v1";
+// RS_* constants and rs* helpers come from shared.ts (dist/shared.js is loaded
+// before this script in popup.html).
+
+interface PopupStatus {
+  loggedIn: boolean;
+  authExpired: boolean;
+  queueCount: number;
+  captureHealth: RsCaptureHealth | null;
+  email?: string;
+  savesToday?: number;
+  tokenExpiresAt?: number | null;
+  tokenKind?: "extension" | "session";
+}
 
 interface PendingCapture {
   url: string;
@@ -226,16 +237,29 @@ document.addEventListener("DOMContentLoaded", () => {
   const capSkipBtn = document.getElementById("capture-skip-btn")!;
   const suggestStatus = document.getElementById("suggest-status")!;
 
-  bridgeLink.href = `${WEB_BASE_URL}/extension`;
+  const reconnectBanner = document.getElementById("reconnect-banner")!;
+  const reconnectHeld = document.getElementById("reconnect-held")!;
+  const queueNotice = document.getElementById("queue-notice")!;
+  const queueText = document.getElementById("queue-text")!;
+  const retryNow = document.getElementById("retry-now")!;
+  const expiryLine = document.getElementById("expiry-line")!;
+  const healthLine = document.getElementById("health-line")!;
+  const errorLine = document.getElementById("error-line")!;
+
+  bridgeLink.href = RS_PAIRING_URL;
 
   function hideAll() {
     loginSection.style.display = "none";
     captureSection.style.display = "none";
     dashSection.style.display = "none";
   }
-  function showLogin(err?: string) {
+  function showLogin(err?: string, reconnect?: { held: boolean }) {
     hideAll();
     loginSection.style.display = "block";
+    reconnectBanner.style.display = reconnect ? "block" : "none";
+    reconnectHeld.style.display = reconnect?.held ? "inline" : "none";
+    openBridgeBtn.textContent = reconnect ? "Reconnect" : "Open bridge page";
+    openBridgeBtn.className = reconnect ? "btn-primary" : "btn-secondary";
     if (err) {
       errorEl.textContent = err;
       errorEl.style.display = "block";
@@ -243,12 +267,57 @@ document.addEventListener("DOMContentLoaded", () => {
       errorEl.style.display = "none";
     }
   }
-  function showDash(email: string, saves: number) {
+  function showDash(status: PopupStatus) {
     hideAll();
     dashSection.style.display = "block";
-    emailEl.textContent = email;
-    savesEl.textContent = String(saves);
+    emailEl.textContent = status.email ?? "User";
+    savesEl.textContent = String(status.savesToday ?? 0);
+    const now = Date.now();
+
+    // Token expiry
+    expiryLine.classList.remove("warn");
+    expiryLine.textContent = "";
+    if (status.tokenExpiresAt) {
+      const days = rsDaysLeft(status.tokenExpiresAt, now);
+      const date = new Date(status.tokenExpiresAt).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      if (days < RS_EXPIRY_WARN_DAYS) {
+        expiryLine.classList.add("warn");
+        expiryLine.textContent =
+          days < 1
+            ? `Connection expires today (${date}). `
+            : `Connection expires in ${days} day${days === 1 ? "" : "s"} (${date}). `;
+        const a = document.createElement("a");
+        a.textContent = "Reconnect now";
+        a.addEventListener("click", () => chrome.tabs.create({ url: RS_PAIRING_URL }));
+        expiryLine.appendChild(a);
+      } else {
+        expiryLine.textContent = `Connected until ${date}`;
+      }
+    }
+
+    // Offline queue
+    if (status.queueCount > 0) {
+      queueNotice.style.display = "block";
+      queueText.textContent = `${status.queueCount} save${status.queueCount === 1 ? "" : "s"} waiting to sync.`;
+    } else {
+      queueNotice.style.display = "none";
+    }
+
+    // Capture health
+    healthLine.textContent = rsHealthSummary(status.captureHealth ?? undefined, now);
+    const err = rsRelevantError(status.captureHealth ?? undefined, now);
+    errorLine.style.display = err ? "block" : "none";
+    errorLine.textContent = err ? `Last error — ${err}` : "";
   }
+
+  retryNow.addEventListener("click", () => {
+    queueText.textContent = "Retrying…";
+    chrome.runtime.sendMessage({ type: "FLUSH_QUEUE" }, () => init());
+  });
 
   // ─── Capture mode ────────────────────────────────────────────────
   const selectedTopics = new Set<string>();
@@ -319,7 +388,13 @@ document.addEventListener("DOMContentLoaded", () => {
           },
         },
         (resp) => {
-          if (resp?.success) {
+          if (resp?.success && resp.authExpired) {
+            // Token died: the save is held in the queue until reconnect.
+            showLogin(undefined, { held: true });
+          } else if (resp?.success && resp.queued) {
+            capSaveBtn.textContent = "Saved offline — will sync";
+            setTimeout(() => window.close(), 1200);
+          } else if (resp?.success) {
             window.close();
           } else {
             capSaveBtn.disabled = false;
@@ -370,48 +445,68 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ─── Entrypoint ──────────────────────────────────────────────────
-  chrome.runtime.sendMessage({ type: "AUTH_STATUS" }, (authResp) => {
-    if (!authResp?.loggedIn) {
-      showLogin();
-      return;
-    }
-    // Check for pending capture first
-    chrome.runtime.sendMessage({ type: "GET_PENDING_CAPTURE" }, (resp) => {
-      const p = resp?.pendingCapture as PendingCapture | null;
-      if (p) {
-        showCapture(p);
-        if (p.suggestionsLoading) pollPending();
-      } else {
-        showDash(authResp.email ?? "User", authResp.savesToday ?? 0);
+  function init() {
+    chrome.runtime.sendMessage({ type: "AUTH_STATUS" }, (authResp: PopupStatus | undefined) => {
+      if (!authResp?.loggedIn) {
+        showLogin(undefined, authResp?.authExpired ? { held: (authResp.queueCount ?? 0) > 0 } : undefined);
+        return;
       }
+      // Check for pending capture first
+      chrome.runtime.sendMessage({ type: "GET_PENDING_CAPTURE" }, (resp) => {
+        const p = resp?.pendingCapture as PendingCapture | null;
+        if (p) {
+          showCapture(p);
+          if (p.suggestionsLoading) pollPending();
+        } else {
+          showDash(authResp);
+        }
+      });
     });
-  });
+  }
+  init();
 
   openBridgeBtn.addEventListener("click", () => {
-    chrome.tabs.create({ url: `${WEB_BASE_URL}/extension` });
+    chrome.tabs.create({ url: RS_PAIRING_URL });
   });
 
   pasteBtn.addEventListener("click", async () => {
-    const token = tokenInput.value.trim();
+    let token = tokenInput.value.trim().replace(/^Bearer\s+/i, "");
     if (!token) {
-      showLogin("Paste a token first.");
+      showLogin("Paste a token first.", reconnectBanner.style.display === "block" ? { held: false } : undefined);
       return;
     }
     try {
-      const resp = await fetch(`${API_BASE_URL}/topics`, {
+      // Validate the token (and learn the account email).
+      const me = await fetch(`${RS_API_BASE}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!resp.ok) {
-        showLogin(`Token rejected (${resp.status}).`);
+      if (!me.ok) {
+        showLogin(`Token rejected (${me.status}).`);
         return;
       }
-      let email = "User";
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        email = payload.email || payload.sub || "User";
-      } catch {}
+      const { user } = await me.json().catch(() => ({ user: null }));
+      const email = (user?.email as string) || "User";
+
+      // A pasted 7-day session token gets swapped for a 180-day extension
+      // token so the pairing doesn't silently break next week.
+      if (!rsIsExtensionToken(token)) {
+        try {
+          const ext = await fetch(`${RS_API_BASE}/auth/extension-token`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (ext.ok) {
+            const j = await ext.json();
+            if (typeof j.token === "string") token = j.token;
+          }
+        } catch {}
+      }
+
+      await chrome.storage.local.remove("authExpired");
       await chrome.storage.local.set({ token, userEmail: email });
-      showDash(email, 0);
+      chrome.action.setBadgeText({ text: "" });
+      tokenInput.value = "";
+      init();
     } catch (e: any) {
       showLogin(`Could not reach API: ${e.message}`);
     }
@@ -422,6 +517,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   dashboardBtn.addEventListener("click", () => {
-    chrome.tabs.create({ url: `${WEB_BASE_URL}/dashboard` });
+    chrome.tabs.create({ url: `${RS_WEB_BASE}/dashboard` });
   });
 });

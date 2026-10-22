@@ -140,6 +140,15 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
+  // The dashboard home has its own top navigation; other pages keep the sidebar.
+  if (pathname === '/dashboard') {
+    return (
+      <div className="rs-grain" style={{ minHeight: '100vh', background: 'var(--rs-bg-base)', color: 'var(--rs-text-primary)' }}>
+        {children}
+      </div>
+    );
+  }
+
   const width = collapsed ? 52 : 220;
   const initials = (user?.name || user?.email || 'U').slice(0, 2).toUpperCase();
 

@@ -8,9 +8,9 @@
 
 Build a Chrome extension + web dashboard that rescues X and YouTube bookmarks and emails users a weekly digest so they actually revisit what they saved.
 
-**Current state:** Phase 1 in progress. Backend + frontend + extension code all scaffolded and wired. Database seeded with demo data. Dashboard reads from real API. Extension not yet tested end-to-end in Chrome.
+**Current state (2026-10-22):** Phase 1 complete and Phase 2 infrastructure deployed for owner-only use at $0 (Render + Supabase + Vercel + Resend + cron-job.org). Scheduled daily/weekly digests, reminders, one-click email actions, notification preferences, insights dashboard, long-lived extension pairing with offline retry. Remaining owner steps are in `docs/go-live.md`.
 
-**Next milestone:** Phase 1.5 — owner uses the product personally for 7 days to find real bugs before deploying anything.
+**Next milestone:** Phase 1.5 — owner uses the product daily for 7 days on the production setup, then decides on Phase 2 distribution.
 
 ---
 
@@ -200,3 +200,5 @@ Ollama runs a model locally. Only works when the backend and Ollama are on the s
 - 2026-04-15 — Wired dashboard to real API with React Query, seeded SQLite, verified all sidebar pages render.
 - 2026-04-15 — Added rule-based topic suggester, console email logger, digest endpoints.
 - 2026-04-16 — Roadmap locked to 5-phase plan (1, 1.5, 2, 2.5, 3) with waitlist-first strategy in Phase 2.
+- 2026-10-16 — Local dev without Docker (`npm run db:local` embedded Postgres); extension `build:local`.
+- 2026-10-22 — Completed the remaining Phase 1–2 work for owner use: scheduled digest + `/v1/cron/tick` (cron-job.org), branded email template with signed one-click actions, notification preferences, snooze auto-expiry, settings/onboarding wiring, `/action-done` + `/privacy`, accessible menus, 180-day extension tokens with reconnect flow and offline save queue, extension icons, redesigned insights dashboard (`/v1/stats/insights`), backend unit tests in CI. Deliberately still out (cost or demand-gated): Google OAuth, Sentry/PostHog, paid AI topics, custom domain, Web Store listing, billing.

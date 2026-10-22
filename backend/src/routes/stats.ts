@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { computeInsights } from '../lib/insights';
 
 const router = Router();
 router.use(authMiddleware);
@@ -64,6 +65,41 @@ router.get('/dashboard', async (req: AuthRequest, res: Response) => {
       review_streak_weeks: 0,
       platform_breakdown,
     });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /stats/insights — everything the dashboard needs about the user's saving habits.
+router.get('/insights', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const [user, bookmarks, lastDigest] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
+      prisma.bookmark.findMany({
+        where: { user_id: userId },
+        select: {
+          id: true,
+          url: true,
+          platform: true,
+          title: true,
+          author: true,
+          status: true,
+          saved_at: true,
+          reviewed_at: true,
+          deleted_at: true,
+          duration_seconds: true,
+          topics: { select: { id: true, name: true, color: true } },
+        },
+      }),
+      prisma.digestLog.findFirst({
+        where: { user_id: userId },
+        orderBy: { sent_at: 'desc' },
+        select: { id: true, sent_at: true, bookmark_ids: true },
+      }),
+    ]);
+
+    res.json(computeInsights(bookmarks, lastDigest, new Date(), user?.timezone ?? 'UTC'));
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }

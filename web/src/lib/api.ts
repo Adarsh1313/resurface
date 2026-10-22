@@ -1,9 +1,21 @@
-import { AuthResponse, PaginatedBookmarks, Bookmark, Topic, DashboardStats, AdminWaitlistResponse, User } from './types';
+import {
+  AuthResponse,
+  PaginatedBookmarks,
+  Bookmark,
+  Topic,
+  DashboardStats,
+  AdminWaitlistResponse,
+  User,
+  DigestSettings,
+  DigestSettingsUpdate,
+  NotificationPreferences,
+  ExtensionTokenResponse,
+} from './types';
 import { API_BASE_URL } from './config';
 
 const BASE_URL = API_BASE_URL;
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
     super(message);
@@ -59,6 +71,8 @@ export const api = {
       apiFetch<{ user: User }>('/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }),
     deleteAccount: () =>
       apiFetch<void>('/auth/account', { method: 'DELETE' }),
+    extensionToken: () =>
+      apiFetch<ExtensionTokenResponse>('/auth/extension-token', { method: 'POST' }),
   },
   bookmarks: {
     list: (params?: Record<string, string>) => {
@@ -99,8 +113,14 @@ export const api = {
   digest: {
     preview: () => apiFetch<{ bookmarks: Bookmark[] }>(`/digest/preview`),
     sendNow: () => apiFetch<{ success: boolean; bookmarks_included: number; message?: string }>(`/digest/send-now`, { method: 'POST' }),
-    settings: (data: { frequency?: number; is_active?: boolean; send_time?: string; days_of_week?: string }) =>
-      apiFetch<{ settings: unknown }>(`/digest/settings`, { method: 'PATCH', body: JSON.stringify(data) }),
+    getSettings: () => apiFetch<{ settings: DigestSettings }>(`/digest/settings`),
+    updateSettings: (data: DigestSettingsUpdate) =>
+      apiFetch<{ settings: DigestSettings }>(`/digest/settings`, { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+  preferences: {
+    get: () => apiFetch<{ preferences: NotificationPreferences }>(`/preferences`),
+    update: (data: Partial<NotificationPreferences>) =>
+      apiFetch<{ preferences: NotificationPreferences }>(`/preferences`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   ai: {
     suggestTopic: (data: { title: string; platform: string; author?: string }) =>

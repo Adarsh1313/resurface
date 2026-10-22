@@ -23,3 +23,6 @@ export const API_BASE_URL =
         return configured && !isLocalApiBase(configured) ? configured : PRODUCTION_API_BASE;
       })()
     : normalizeApiBase(process.env.NEXT_PUBLIC_API_BASE_URL) ?? LOCAL_API_BASE;
+
+// "Sign in with Google" isn't implemented yet; flip on once the OAuth flow exists.
+export const GOOGLE_AUTH_ENABLED = false;

@@ -2,6 +2,8 @@
 
 Living list of outstanding work, ordered by phase. Update as items land.
 
+> **Status 2026-10-22:** items 1, 2, 5, 6, 12 (owner-only $0 deploy), 13 (checklist only) and 14 (menus) from the phase table are done, plus the digest-scheduler gap. Remaining: 3 (Google OAuth), 4 (verified domain — only needed for other users), 7 (topic merge UI), 8 (full-text search / saved views), 9 (PWA), 10 (PostHog/Sentry), 11 (web E2E tests), 15 (billing). Owner go-live steps: [docs/go-live.md](docs/go-live.md).
+
 ---
 
 ## Outstanding manual checks

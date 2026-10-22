@@ -18,7 +18,13 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 
   const token = header.slice(7);
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { userId: string };
+    // Accepts both session tokens ({ userId }) and long-lived extension tokens
+    // ({ userId, kind: 'extension' }); only userId is needed here.
+    const payload = jwt.verify(token, JWT_SECRET) as { userId?: unknown; kind?: unknown };
+    if (typeof payload !== 'object' || typeof payload.userId !== 'string') {
+      res.status(401).json({ error: 'Invalid token' });
+      return;
+    }
     prisma.user
       .findUnique({ where: { id: payload.userId }, select: { id: true, email: true, name: true } })
       .then((user) => {
@@ -39,4 +45,11 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 
 export function signToken(userId: string): string {
   return jwt.sign({ userId }, getJwtSecret(), { expiresIn: '7d' });
+}
+
+/** Long-lived (180d) token for the browser extension. Sessions keep using signToken. */
+export function signExtensionToken(userId: string): { token: string; expires_at: string } {
+  const token = jwt.sign({ userId, kind: 'extension' }, getJwtSecret(), { expiresIn: '180d' });
+  const { exp } = jwt.decode(token) as { exp: number };
+  return { token, expires_at: new Date(exp * 1000).toISOString() };
 }

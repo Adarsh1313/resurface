@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { z } from 'zod';
 import prisma from '../lib/prisma';
-import { authMiddleware, AuthRequest, signToken } from '../middleware/auth';
+import { authMiddleware, AuthRequest, signExtensionToken, signToken } from '../middleware/auth';
 import { sendEmail } from '../lib/email';
 
 const router = Router();
@@ -190,6 +190,17 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       return;
     }
     res.json({ user: sanitizeUser(user) });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mint a long-lived (180d) token for the browser extension so it doesn't break
+// every week when the 7d session expires. Requires normal auth.
+// Contract (used by the web /extension page): -> { token, expires_at }
+router.post('/extension-token', authMiddleware, (req: AuthRequest, res: Response) => {
+  try {
+    res.json(signExtensionToken(req.user!.id));
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }

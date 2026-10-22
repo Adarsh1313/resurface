@@ -1,14 +1,17 @@
 {
   "name": "resurface-extension",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
-    "build": "tsc && cp src/prompt.css dist/prompt.css",
-    "watch": "tsc --watch"
+    "build": "node scripts/build.mjs",
+    "build:local": "node scripts/build.mjs --local",
+    "watch": "tsc --watch",
+    "test": "node scripts/build.mjs && node scripts/test-shared.mjs",
+    "icons": "node scripts/icons.mjs"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "^2.1.109",
     "@types/chrome": "^0.1.40",
+    "sharp": "^0.35.5",
     "typescript": "^5.4.0"
   }
 }
