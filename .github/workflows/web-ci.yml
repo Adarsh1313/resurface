@@ -80,6 +80,15 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      # `vercel pull` writes Sensitive env vars as the literal "[SENSITIVE]";
+      # fail before deploying if one leaked into the client bundle.
+      - name: Verify no redacted env values in bundle
+        run: |
+          if grep -R --include="*.js" -l '\[SENSITIVE\]' .vercel/output/static; then
+            echo "A Sensitive Vercel env var was baked into the bundle as [SENSITIVE]"
+            exit 1
+          fi
+
       - name: Deploy to Vercel Production
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:

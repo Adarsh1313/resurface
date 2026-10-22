@@ -1,9 +1,18 @@
 const LOCAL_API_BASE = ['http://localhost:4000', 'v1'].join('/');
 const PRODUCTION_API_BASE = 'https://resurface-nclr.onrender.com/v1';
 
+// Only accept an absolute http(s) URL. Anything else — e.g. the literal
+// "[SENSITIVE]" that `vercel pull` writes for Sensitive env vars — would turn
+// every API call into a relative request against the web host.
 function normalizeApiBase(value: string | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+  } catch {
+    return null;
+  }
   return trimmed.replace(/\/$/, '');
 }
 
