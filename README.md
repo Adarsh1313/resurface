@@ -126,11 +126,10 @@ resurface/
 ├── backend/     Express API, Prisma schema + migrations, scheduler, email templates
 ├── extension/   Chrome MV3 extension
 ├── docs/        Go-live, cron, email and Web Store guides
-├── _design/     Design references and the dashboard mockup
-└── ROADMAP.md   Phases, decisions and changelog
+└── _design/     Design references and the dashboard mockup
 ```
 
-## Roadmap
+## What's next
 
 Built and running for personal use. Next, depending on whether others want it:
 
@@ -140,8 +139,6 @@ Built and running for personal use. Next, depending on whether others want it:
 - Full-text search and saved views
 - AI topic tagging and digest summaries
 - Mobile-friendly PWA
-
-Decisions and history are in [ROADMAP.md](ROADMAP.md).
 
 ## License
 
